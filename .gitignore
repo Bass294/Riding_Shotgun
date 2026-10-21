@@ -1,0 +1,22 @@
+# Build output
+/out/
+
+# IntelliJ per-user files
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+*.iws
+
+# Logs and crash dumps
+*.log
+*.stackdump
+hs_err_pid*
+
+# Archives
+*.zip
+*.7z
+*.rar
+
+# OS
+.DS_Store
+Thumbs.db

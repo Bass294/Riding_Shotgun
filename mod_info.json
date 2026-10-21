@@ -1,0 +1,18 @@
+{
+    "id": "rsg_riding_shotgun",
+    "name": "Riding Shotgun",
+    "author": "Bass",
+    "utility": "false",
+    "version": "0.1.0",
+    "description": "Riding Shotgun.",
+    "gameVersion": "0.98a-RC8",
+    "jars": ["jars/RidingShotgun.jar"],
+    "dependencies": [
+        {"id": "patchlib", "name": "PatchLib"},
+        {"id": "lw_lazylib", "name": "LazyLib"},
+        {"id": "MagicLib", "name": "MagicLib"},
+        {"id": "lunalib", "name": "LunaLib"},
+        {"id": "shaderLib", "name": "GraphicsLib"},
+    ],
+    "modPlugin": "data.scripts.rsg_modPlugin",
+}

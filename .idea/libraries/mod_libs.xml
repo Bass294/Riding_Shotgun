@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="mod-libs">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../! PatchLib !-0.6.0/jars/PatchLibAPI.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../LazyLib-3.0.0/jars/LazyLib.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../LazyLib-3.0.0/jars/LazyLib-Kotlin.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../MagicLib-1.5.8rc2/jars/MagicLib.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../LunaLib-2.0.5/jars/LunaLib.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../zz GraphicsLib-1.12.1/jars/Graphics.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
