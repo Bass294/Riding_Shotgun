@@ -7,6 +7,7 @@
       <root url="jar://$PROJECT_DIR$/../MagicLib-1.5.8rc2/jars/MagicLib.jar!/" />
       <root url="jar://$PROJECT_DIR$/../LunaLib-2.0.5/jars/LunaLib.jar!/" />
       <root url="jar://$PROJECT_DIR$/../zz GraphicsLib-1.12.1/jars/Graphics.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../Console Commands-4.0.9/jars/lw_Console.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

@@ -1,0 +1,2 @@
+command,class,tags,syntax,help
+rsg_SecondOfficer,data.scripts.console.rsg_SecondOfficerCommand,"campaign,ridingshotgun","rsg_SecondOfficer [list|set <ship#> <officer#>|skills <ship#>|clear <ship#>]","Lists ships with the Dual Command Interface and your officers, shows which of a second officer's skills apply (base/elite), or assigns/clears a second officer by the numbers shown in the list."

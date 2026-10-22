@@ -1,6 +1,8 @@
 package data.scripts;
 
 import com.fs.starfarer.api.BaseModPlugin;
+import com.fs.starfarer.api.Global;
+import data.scripts.officers.rsg_SecondOfficerCleanup;
 import org.apache.log4j.Logger;
 
 public class rsg_modPlugin extends BaseModPlugin {
@@ -11,5 +13,10 @@ public class rsg_modPlugin extends BaseModPlugin {
     @Override
     public void onApplicationLoad() {
         log.info("Riding Shotgun loaded");
+    }
+
+    @Override
+    public void onGameLoad(boolean newGame) {
+        Global.getSector().addTransientScript(new rsg_SecondOfficerCleanup());
     }
 }
