@@ -14,6 +14,7 @@ import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.ui.UIComponentAPI;
 import com.fs.starfarer.api.ui.UIPanelAPI;
+import com.fs.starfarer.api.util.Misc;
 import data.scripts.officers.rsg_SecondOfficers;
 import data.scripts.ui.rsg_PipPortrait;
 import data.scripts.ui.rsg_SecondOfficerTooltip;
@@ -66,6 +67,7 @@ public class rsg_PortraitPatch {
     private static final String KEY_PERSON = "rsg_pip_person";
     private static final String KEY_LEVEL = "rsg_pip_level";
     private static final String KEY_TINT = "rsg_pip_tint";
+    private static final String KEY_EMPTY = "rsg_pip_empty";
     private static final String KEY_TIMER = "rsg_pip_timer";
 
     private static final MethodQuerySpec GET_MEMBER = MethodQuery.create().methodName("getMember").parameterCount(0).build();
@@ -136,11 +138,13 @@ public class rsg_PortraitPatch {
         // combat portraits carry the ship's side color; everywhere else this is null
         Color tint = ctx.hasMethod(GET_COLOR) ? ctx.getMethod(GET_COLOR).call() : null;
         boolean sideBySide = Global.getCurrentState() == GameState.COMBAT;
+        // an empty second seat gets a clickable empty portrait, but only where clicking can assign officers
+        boolean emptySeat = second == null && !sideBySide && hasEmptySeat(ctx);
 
         UIComponentAPI pip = data.get(KEY_PIP);
         Integer shownLevel = data.get(KEY_LEVEL);
         if (pip != null && second == data.get(KEY_PERSON) && shownLevel != null && shownLevel == level
-                && Objects.equals(tint, data.get(KEY_TINT))) {
+                && Objects.equals(tint, data.get(KEY_TINT)) && emptySeat == data.has(KEY_EMPTY)) {
             // vanilla re-adds its portrait when the captain changes, which would cover ours
             portrait.bringComponentToTop(pip);
             return;
@@ -155,8 +159,9 @@ public class rsg_PortraitPatch {
         data.remove(KEY_PERSON);
         data.remove(KEY_LEVEL);
         data.remove(KEY_TINT);
+        data.remove(KEY_EMPTY);
         OVERLAYS.remove(portrait);
-        if (second == null) return;
+        if (second == null && !emptySeat) return;
 
         float width = portrait.getPosition().getWidth();
         float height = portrait.getPosition().getHeight();
@@ -176,9 +181,37 @@ public class rsg_PortraitPatch {
             OVERLAYS.put(portrait, new WeakReference<CustomPanelAPI>(created));
         }
         data.putWeak(KEY_PIP, created);
-        data.putWeak(KEY_PERSON, second);
+        if (second != null) data.putWeak(KEY_PERSON, second);
         data.put(KEY_LEVEL, level);
         if (tint != null) data.put(KEY_TINT, tint);
+        if (emptySeat) data.put(KEY_EMPTY, Boolean.TRUE);
+    }
+
+    /**
+     * True for a fleet-screen portrait whose ship has the Dual Command Interface, and whose button can open the
+     * officer picker, so an empty second seat can be shown and clicked.
+     */
+    private static boolean hasEmptySeat(AfterContext ctx) {
+        if (Global.getCurrentState() != GameState.CAMPAIGN || isRefitTab()) return false;
+        Object member = ctx.hasMethod(GET_MEMBER) ? ctx.getMethod(GET_MEMBER).call() : null;
+        if (!(member instanceof FleetMemberAPI)) return false;
+        FleetMemberAPI m = (FleetMemberAPI) member;
+        if (m.isFighterWing() || m.getVariant() == null || Misc.isAutomated(m)) return false;
+        if (m.getFleetData() == null || m.getFleetData() != rsg_SecondOfficers.getPlayerFleetData()) return false;
+        if (!rsg_SecondOfficers.hasDualCommand(m)) return false;
+        return canAssign(ctx, getButton(ctx));
+    }
+
+    /** Whether this portrait's button belongs to a screen that can open the officer picker. */
+    private static boolean canAssign(AfterContext ctx, Object button) {
+        if (button == null || !ctx.hasMethod(GET_LISTENER, button)) return false;
+        Object listener = ctx.getMethod(GET_LISTENER, button).call();
+        return listener != null && ctx.hasMethod(SHOW_PICKER, listener);
+    }
+
+    private static boolean isRefitTab() {
+        CampaignUIAPI ui = Global.getSector().getCampaignUI();
+        return ui != null && ui.getCurrentCoreTab() == CoreUITabId.REFIT;
     }
 
     /**
@@ -210,8 +243,7 @@ public class rsg_PortraitPatch {
 
         Object button = getButton(ctx);
         if (!canSwapTooltip(ctx, button)) return;
-        Object listener = ctx.hasMethod(GET_LISTENER, button) ? ctx.getMethod(GET_LISTENER, button).call() : null;
-        if (listener == null || !ctx.hasMethod(SHOW_PICKER, listener)) return;
+        if (!canAssign(ctx, button)) return;
         Object member = ctx.hasMethod(GET_MEMBER) ? ctx.getMethod(GET_MEMBER).call() : null;
         if (!(member instanceof FleetMemberAPI)) return;
 
@@ -292,10 +324,7 @@ public class rsg_PortraitPatch {
 
     private static PersonAPI findSecondOfficer(AfterContext ctx) {
         GameState state = Global.getCurrentState();
-        if (state == GameState.CAMPAIGN) {
-            CampaignUIAPI ui = Global.getSector().getCampaignUI();
-            if (ui != null && ui.getCurrentCoreTab() == CoreUITabId.REFIT) return null;
-        }
+        if (state == GameState.CAMPAIGN && isRefitTab()) return null;
 
         // the fleet screen tells the portrait which ship it belongs to
         if (ctx.hasMethod(GET_MEMBER)) {
@@ -303,7 +332,14 @@ public class rsg_PortraitPatch {
             if (member instanceof FleetMemberAPI) return rsg_SecondOfficers.get((FleetMemberAPI) member);
         }
 
-        // otherwise (combat, tooltips) find the ship this captain commands
+        // a combat reticle portrait knows its ship; the captain lookup below can't tell apart two ships the player
+        // captains at once (Neural Link)
+        if (state == GameState.COMBAT) {
+            ShipAPI ship = rsg_CombatReticlePatch.getShip(ctx.getSelf());
+            if (ship != null) return rsg_SecondOfficers.get(ship.getFleetMember());
+        }
+
+        // otherwise (tooltips, other combat portraits) find the ship this captain commands
         if (!ctx.hasMethod(GET_PERSON)) return null;
         Object captain = ctx.getMethod(GET_PERSON).call();
         if (!(captain instanceof PersonAPI) || ((PersonAPI) captain).isDefault()) return null;

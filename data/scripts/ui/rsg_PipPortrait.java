@@ -40,9 +40,12 @@ public class rsg_PipPortrait extends BaseCustomUIPanelPlugin {
         rsg_PipPortrait plugin = new rsg_PipPortrait(person, inset, tint, sideBySide);
         CustomPanelAPI panel = Global.getSettings().createCustom(width, height, plugin);
         TooltipMakerAPI levelText = panel.createUIElement(width - 2f * inset - 2f, 12f, false);
-        levelText.setParaFont(Fonts.VICTOR_10);
-        LabelAPI level = levelText.addPara("" + person.getStats().getLevel(), tint != null ? tint : getBrightColor(), 0f);
-        level.setAlignment(Alignment.RMID);
+        // an empty seat (person null) shows only the default portrait, like vanilla's empty officer portrait
+        if (person != null) {
+            levelText.setParaFont(Fonts.VICTOR_10);
+            LabelAPI level = levelText.addPara("" + person.getStats().getLevel(), tint != null ? tint : getBrightColor(), 0f);
+            level.setAlignment(Alignment.RMID);
+        }
         panel.addUIElement(levelText).inTR(2f + inset, -2f + inset);
         plugin.element = levelText;
         return panel;
@@ -97,7 +100,8 @@ public class rsg_PipPortrait extends BaseCustomUIPanelPlugin {
         float x = pos.getX(), y = pos.getY(), w = pos.getWidth(), h = pos.getHeight();
         // the overlay sits on top of another portrait, so give it a backing to separate the two
         if (!sideBySide) rsg_Draw.quad(x, y, w, h, Color.black, alphaMult, false);
-        rsg_Draw.portrait(person.getPortraitSprite(), x + inset, y + inset, w - 2f * inset, h - 2f * inset, alphaMult, tint);
+        String sprite = person != null ? person.getPortraitSprite() : Global.getSettings().getSpriteName("misc", "default_portrait");
+        rsg_Draw.portrait(sprite, x + inset, y + inset, w - 2f * inset, h - 2f * inset, alphaMult, tint);
     }
 
     @Override

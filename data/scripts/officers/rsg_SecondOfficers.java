@@ -106,8 +106,29 @@ public class rsg_SecondOfficers {
             if (member == null || person == null || getInvalidReason(member, person) != null || !seated.add(person)) {
                 it.remove();
                 updateStats(member);
+            } else if (hasNoCaptain(member)) {
+                it.remove();
+                member.setCaptain(person);
             }
         }
+    }
+
+    /**
+     * If the ship lost its captain (unassigned, a mercenary leaving, recovery after battle) but still has a second
+     * officer, moves the second officer into the captain's seat. Returns true if it did.
+     */
+    public static boolean promoteIfCaptainless(FleetMemberAPI member) {
+        if (member == null || !hasNoCaptain(member)) return false;
+        PersonAPI second = get(member);
+        if (second == null) return false;
+        Map<String, PersonAPI> map = getMap(false);
+        if (map != null) map.remove(member.getId());
+        member.setCaptain(second);
+        return true;
+    }
+
+    private static boolean hasNoCaptain(FleetMemberAPI member) {
+        return member.getCaptain() == null || member.getCaptain().isDefault();
     }
 
     /** Returns null if the officer can sit in this member's second seat, otherwise a player-readable reason. */

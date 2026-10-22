@@ -71,6 +71,11 @@ public class rsg_RefitOfficerPatch {
         try {
             ctx.getData().remove(KEY_SLOT);
             Object arg = ctx.getArg(0);
+            // right-clicking the vanilla portrait empties the captain's seat and rebuilds this box; fill it with the
+            // second officer before the slot is drawn (the vanilla portrait follows the captain by itself)
+            if (arg instanceof FleetMemberAPI && Global.getCurrentState() == GameState.CAMPAIGN) {
+                rsg_SecondOfficers.promoteIfCaptainless((FleetMemberAPI) arg);
+            }
             if (arg instanceof FleetMemberAPI) updateSlot(ctx, (FleetMemberAPI) arg, ((FleetMemberAPI) arg).getVariant());
         } catch (Throwable t) {
             log.error("Riding Shotgun: couldn't add the second officer slot to the refit screen", t);
