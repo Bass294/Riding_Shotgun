@@ -1,10 +1,8 @@
 package data.scripts.patches;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.combat.CombatEngineAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.ui.UIPanelAPI;
-import org.apache.log4j.Logger;
 import patchlib.api.context.ConstructorCallContext;
 import patchlib.api.context.MethodCallContext;
 import patchlib.api.match.ClassMatch;
@@ -39,8 +37,6 @@ import java.util.WeakHashMap;
                 @FieldMatch(typeName = "com.fs.starfarer.combat.CombatViewport")
         }))
 public class rsg_CombatReticlePatch {
-
-    private static final Logger log = Global.getLogger(rsg_CombatReticlePatch.class);
 
     @RedirectMethodCall(
             target = @MethodMatch(methodType = MethodType.CONSTRUCTOR, parameterCount = 3),
@@ -96,12 +92,8 @@ public class rsg_CombatReticlePatch {
     private static void recordShip(ConstructorCallContext context) {
         Object portrait = context.call();
         context.setResult(portrait);
-        try {
-            if (portrait == null || !context.hasField(SHIP)) return;
-            Object ship = context.getField(SHIP).get();
-            if (ship instanceof ShipAPI) PORTRAIT_SHIPS.put(portrait, new WeakReference<ShipAPI>((ShipAPI) ship));
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't record a combat portrait's ship", t);
-        }
+        if (portrait == null || !context.hasField(SHIP)) return;
+        Object ship = context.getField(SHIP).get();
+        if (ship instanceof ShipAPI) PORTRAIT_SHIPS.put(portrait, new WeakReference<ShipAPI>((ShipAPI) ship));
     }
 }

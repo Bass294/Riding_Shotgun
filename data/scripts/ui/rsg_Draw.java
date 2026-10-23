@@ -54,13 +54,29 @@ public class rsg_Draw {
         sprite.render(x, y);
     }
 
+    /**
+     * Vanilla draws an empty officer seat as the grayscale default portrait tinted with the player faction's base UI
+     * color (com.fs.starfarer.campaign.ui.oo0O on 0.98a-RC8, a translation of obfuscated code).
+     */
+    public static String getEmptySeatSprite() {
+        return Global.getSettings().getSpriteName("misc", "default_portrait");
+    }
+
+    public static Color getEmptySeatTint() {
+        return Global.getSector().getPlayerFaction().getBaseUIColor();
+    }
+
     /** The portrait drawn with additive blending, as vanilla does for its hover glow. */
     public static void portraitAdditive(String spriteName, float x, float y, float w, float h, float alpha) {
+        portraitAdditive(spriteName, x, y, w, h, alpha, null);
+    }
+
+    public static void portraitAdditive(String spriteName, float x, float y, float w, float h, float alpha, Color tint) {
         if (spriteName == null) return;
         SpriteAPI sprite = Global.getSettings().getSprite(spriteName);
         if (sprite == null) return;
         sprite.setAdditiveBlend();
-        sprite.setColor(Color.white);
+        sprite.setColor(tint != null ? tint : Color.white);
         sprite.setSize(w, h);
         sprite.setAlphaMult(alpha);
         sprite.render(x, y);

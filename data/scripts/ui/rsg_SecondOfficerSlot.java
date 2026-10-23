@@ -76,14 +76,18 @@ public class rsg_SecondOfficerSlot extends BaseCustomUIPanelPlugin {
     }
 
     private String getSprite() {
-        return second != null ? second.getPortraitSprite() : Global.getSettings().getSpriteName("misc", "default_portrait");
+        return second != null ? second.getPortraitSprite() : rsg_Draw.getEmptySeatSprite();
+    }
+
+    private Color getTint() {
+        return second != null ? null : rsg_Draw.getEmptySeatTint();
     }
 
     @Override
     public void renderBelow(float alphaMult) {
         if (pos == null) return;
         float x = pos.getX(), y = pos.getY(), w = pos.getWidth(), h = pos.getHeight();
-        rsg_Draw.portrait(getSprite(), x + 1f, y + 1f, w - 2f, h - 2f, alphaMult);
+        rsg_Draw.portrait(getSprite(), x + 1f, y + 1f, w - 2f, h - 2f, alphaMult, getTint());
     }
 
     /** Same as the vanilla portrait: the portrait redrawn additively on hover, and a fixed border that doesn't light up. */
@@ -93,7 +97,7 @@ public class rsg_SecondOfficerSlot extends BaseCustomUIPanelPlugin {
         float x = pos.getX(), y = pos.getY(), w = pos.getWidth(), h = pos.getHeight();
         float glow = hover.getBrightness() * HIGHLIGHT_BRIGHTNESS;
         if (glow > 0f) {
-            rsg_Draw.portraitAdditive(getSprite(), x + 1f, y + 1f, w - 2f, h - 2f, alphaMult * glow * 0.25f);
+            rsg_Draw.portraitAdditive(getSprite(), x + 1f, y + 1f, w - 2f, h - 2f, alphaMult * glow * 0.25f, getTint());
         }
         Color border = rsg_Draw.lerp(Global.getSettings().getColor("widgetBorderColorDark"), Color.black, 0.5f);
         rsg_Draw.border(x, y, w, h, border, alphaMult);
@@ -134,7 +138,7 @@ public class rsg_SecondOfficerSlot extends BaseCustomUIPanelPlugin {
         } catch (Throwable t) {
             log.error("Riding Shotgun: second officer slot action failed", t);
             Global.getSector().getCampaignUI().getMessageDisplay().addMessage(
-                    "Couldn't change the second officer, see starsector.log", Misc.getNegativeHighlightColor());
+                    "Couldn't change the co-pilot, see starsector.log", Misc.getNegativeHighlightColor());
         }
     }
 }

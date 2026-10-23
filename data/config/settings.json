@@ -1,0 +1,13 @@
+{
+	"ruleCommandPackages":[
+		"data.scripts.rulecmd",
+	],
+	"graphics":{
+		"characters":{
+			"rsg_gemini_core":"graphics/portraits/portrait_dualcore.png",
+		},
+		"illustrations":{
+			"rsg_gemini_display":"graphics/illustrations/drift_display_rsg.png",
+		},
+	},
+}

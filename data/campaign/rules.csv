@@ -1,0 +1,36 @@
+id,trigger,conditions,script,text,options,notes
+"# Research Station Gemini: approach, Remnant defenders, salvage",,,,,,
+rsg_gemini_open,OpenInteractionDialog,"$customType == rsg_gemini_station score:1000
+!$defenderFleetDefeated","ShowDefaultVisual
+PrintDescription 1",Your fleet approaches Research Station Gemini.,"rsg_gemini_continue:Explore
+defaultLeave:Leave",
+rsg_gemini_continue,DialogOptionSelected,$option == rsg_gemini_continue,"rsg_GeminiStationCMD prepareDefenders
+SalvageDefenderInteraction","Your fleet approaches the research station, comms officer detecting multiple warships in its dockyards. Sensors detect no life signs, and reactors power on as you get within their range. The large fleet is led by an abnormal flagship, projecting signatures of two distinct, yet synchronized, alpha cores.",,
+rsg_gemini_beatDefenders,BeatDefendersContinue,$customType == rsg_gemini_station score:1000,"ShowImageVisual rsg_gemini_display
+Highlight ""hull modification"" ""two officers""","With its defenses offline, your fleet docks at the station. Inside you find partial records detailing a project with a codename ""Gemini"". Logs contain multiple cycles of experiments in cybernetics, with the stated goal of deeper inter-personal understanding. Multiple experiments are listed with positive results, dozens of pairings of test subjects resolving conflicts, growing closer, and performing higher in coordination tests. The logs appear to sour over time, with lesser dependency on the linking device. Subjects nonverbal. Lack of inter-personal interest outside their partner.
+
+Experiments cancelled, changes in technological application. The final records post-collapse read all too similarly to other tragedies of stations cut off from their gate-dependent supply chains.
+
+Your science team reports replicable schematics of the prototype technology aboard the station. The hull modification allows for a neural bridge between two officers on the same ship, allowing them to act as one.","rsg_gemini_loot:Loot the station's storage
+defaultLeave:Leave",
+rsg_gemini_openDefeated,OpenInteractionDialog,"$customType == rsg_gemini_station score:1000
+$defenderFleetDefeated",ShowImageVisual rsg_gemini_display,"The station drifts silently, wreckage of the battle orbiting closely.","rsg_gemini_loot:Loot the station's storage
+defaultLeave:Leave",
+rsg_gemini_loot,DialogOptionSelected,$option == rsg_gemini_loot,"ShowDefaultVisual
+$entity.doNotDismissDialogAfterSalvage = true 0
+rsg_GeminiStationCMD addStationLoot
+SalvageEntity performSalvage
+FireBest PostSalvagePerform","Your salvors do a thorough sweep through the station, itemizing their findings before they begin loading.",,
+rsg_gemini_postSalvage,PostSalvagePerform,$customType == rsg_gemini_station score:1000,,"The station's integrity rapidly deteriorates as your fleet pulls away, sensor readings completely dead.",defaultLeave:Leave,
+,,,,,,
+"# Research Station Gemini bar lead: Cecilia Corabelle, the archivist (RAT Relics of the Past structure)",,,,,,
+rsg_bar_geminiAdd,AddBarEvents,rsg_GeminiStationCMD barCanShow,"AddBarEvent rsg_bar_gemini ""Talk to the archivist"" ""An archivist sits casually reading what appears to be a paper book.""",,,
+rsg_bar_geminiTalk,DialogOptionSelected,$option == rsg_bar_gemini,BeginConversation rsg_archivist true false,"The archivist closes their book as you approach, introducing themselves merely as CC. After hearing of your position as an independent Captain, she explains her situation. She is searching for an abandoned research station under the registry ""Gemini"". She has narrowed the search to a single star system.
+
+""Some of the greatest minds pre-collapse have been recorded visiting this station. I only ask for a copy of its public employment registry, you should be able to scan it as you approach. Your payment will be the salvage onboard.""","rsg_bar_geminiAccept:Accept
+rsg_bar_geminiDecline:Decline",
+rsg_bar_geminiDecline,DialogOptionSelected,$option == rsg_bar_geminiDecline,BarCMD returnFromEvent true,"""I'll be here if you change your mind.""",,
+rsg_bar_geminiAccept,DialogOptionSelected,$option == rsg_bar_geminiAccept,"Highlight $global.rsg_geminiStationName $global.rsg_geminiSystemName
+ShowMapMarker rsg_gemini_station ""Research Station Gemini""
+rsg_GeminiStationCMD acceptLead
+BarCMD returnFromEvent true","""Thank you. The record names it $global.rsg_geminiStationName, somewhere in the $global.rsg_geminiSystemName system. I haven't seen it reported since the Collapse, so you may be the first life it's seen in a long time. What happens to the station is your business. All I need is the registry data.""",,

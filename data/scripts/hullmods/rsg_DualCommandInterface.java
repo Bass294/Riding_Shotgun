@@ -1,5 +1,10 @@
 package data.scripts.hullmods;
 
+import com.fs.starfarer.api.GameState;
+import com.fs.starfarer.api.Global;
+import com.fs.starfarer.api.campaign.CargoAPI.CargoItemType;
+import com.fs.starfarer.api.campaign.CargoStackAPI;
+import com.fs.starfarer.api.campaign.SpecialItemData;
 import com.fs.starfarer.api.characters.PersonAPI;
 import com.fs.starfarer.api.characters.SkillSpecAPI;
 import com.fs.starfarer.api.combat.BaseHullMod;
@@ -7,11 +12,14 @@ import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipAPI.HullSize;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
+import com.fs.starfarer.api.impl.campaign.ids.Stats;
+import com.fs.starfarer.api.ui.Alignment;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.util.Misc;
 import data.scripts.officers.rsg_SecondOfficerSkills;
 import data.scripts.officers.rsg_SecondOfficers;
 
+import java.awt.Color;
 import java.util.List;
 
 /**
@@ -21,12 +29,40 @@ import java.util.List;
  */
 public class rsg_DualCommandInterface extends BaseHullMod {
 
+    public static final String REQUIRED_ITEM = "rsg_gemini_core";
+    // deployment cost increase per skill the second officer adds
+    public static final float DP_PERCENT_PER_SKILL = 8f;
+    private static final String BULLET = "•";
+
+    /**
+     * Installing needs a Gemini Core. Vanilla's HullModItemManager does the rest: it blocks installing without one,
+     * takes it when the refit is saved, gives it back when the hullmod comes off, and BaseHullMod shows the
+     * "Requires item" / "Using item" line in the tooltip.
+     */
+    @Override
+    public CargoStackAPI getRequiredItem() {
+        return Global.getSettings().createCargoStack(CargoItemType.SPECIAL, new SpecialItemData(REQUIRED_ITEM, null), null);
+    }
+
     @Override
     public void applyEffectsBeforeShipCreation(HullSize hullSize, MutableShipStatsAPI stats, String id) {
         FleetMemberAPI member = stats.getFleetMember();
         PersonAPI second = rsg_SecondOfficers.get(member);
         if (second == null) return;
         rsg_SecondOfficerSkills.applyToStats(second, member.getCaptain(), stats, hullSize);
+
+        // deployment cost, the same two stats vanilla's Neural Integrator raises
+        float percent = getDeploymentIncreasePercent(second, member.getCaptain());
+        if (percent > 0f) {
+            stats.getSuppliesToRecover().modifyPercent(id, percent);
+            stats.getDynamic().getMod(Stats.DEPLOYMENT_POINTS_MOD).modifyPercent(id, percent);
+        }
+    }
+
+    /** DP_PERCENT_PER_SKILL for each skill the second officer adds; skills the captain already has don't count. */
+    public static float getDeploymentIncreasePercent(PersonAPI second, PersonAPI captain) {
+        if (second == null) return 0f;
+        return DP_PERCENT_PER_SKILL * rsg_SecondOfficerSkills.getUniqueSkills(second, captain).size();
     }
 
     @Override
@@ -34,7 +70,12 @@ public class rsg_DualCommandInterface extends BaseHullMod {
         FleetMemberAPI member = getMember(ship);
         PersonAPI second = rsg_SecondOfficers.get(member);
         if (second == null) return;
+        // ships built without a captain (fleet screen previews and the like) get no captain skill effects from vanilla
+        // either, and some modded skills read ship.getCaptain() unchecked
+        if (ship.getCaptain() == null) return;
         rsg_SecondOfficerSkills.applyAfterShipCreation(second, member.getCaptain(), ship);
+        // so the co-pilot still gets post-battle XP if this ship is lost (rsg_OfficerXPPatch)
+        if (Global.getCurrentState() == GameState.COMBAT) rsg_SecondOfficers.recordCombatPair(member.getCaptain(), second);
     }
 
     @Override
@@ -56,22 +97,50 @@ public class rsg_DualCommandInterface extends BaseHullMod {
         return "Can't be installed on automated ships";
     }
 
+    // the description from hull_mods.csv first, then the headed sections below, like Arma Armatura's hullmods
+    @Override
+    public boolean shouldAddDescriptionToTooltip(HullSize hullSize, ShipAPI ship, boolean isForModSpec) {
+        return true;
+    }
+
     @Override
     public void addPostDescriptionSection(TooltipMakerAPI tooltip, HullSize hullSize, ShipAPI ship, float width, boolean isForModSpec) {
-        if (isForModSpec || ship == null) return;
-        FleetMemberAPI member = getMember(ship);
-        if (member == null) return;
-        float opad = 10f;
-        PersonAPI second = rsg_SecondOfficers.get(member);
-        if (second == null) {
-            tooltip.addPara("No second officer assigned.", Misc.getGrayColor(), opad);
-            return;
+        float pad = 10f;
+        float padS = 2f;
+        Color h = Misc.getHighlightColor();
+
+        tooltip.addSectionHeading("Effect", Alignment.MID, pad);
+        tooltip.addPara("%s Allows assigning a second officer to the ship.", pad, h, BULLET);
+        tooltip.addPara("%s The co-pilot's combat skills also apply their effects.", padS, h, BULLET);
+        tooltip.addPara("%s Duplicate skills have no additional effect.", padS, h, BULLET);
+        tooltip.addPara("%s Skills gain their elite effect if either officer has the elite skill.", padS, h, BULLET);
+        tooltip.addPara("%s Requires a %s to install. The core is returned when the hullmod is removed.",
+                padS, h, BULLET, "Gemini Core");
+
+        tooltip.addSectionHeading("Deployment Point Penalty", Alignment.MID, pad);
+        tooltip.addPara("%s Deployment cost is increased by %s for each non-duplicate skill added by the co-pilot.",
+                pad, h, BULLET, Misc.getRoundedValueMaxOneAfterDecimal(DP_PERCENT_PER_SKILL) + "%");
+
+        FleetMemberAPI member = isForModSpec ? null : getMember(ship);
+        PersonAPI second = member != null ? rsg_SecondOfficers.get(member) : null;
+        if (member != null) {
+            float percent = getDeploymentIncreasePercent(second, member.getCaptain());
+            float dp = member.getHullSpec().getSuppliesToRecover() * percent / 100f;
+            int skills = second != null ? rsg_SecondOfficerSkills.getUniqueSkills(second, member.getCaptain()).size() : 0;
+            tooltip.addPara("%s Currently adding %s. %s (%s) deployment point cost", padS, h, BULLET,
+                    skills == 1 ? "1 skill" : skills + " skills",
+                    "+" + Misc.getRoundedValueMaxOneAfterDecimal(percent) + "%",
+                    "+" + Misc.getRoundedValueMaxOneAfterDecimal(dp));
         }
 
+        if (member == null) return;
+        tooltip.addSectionHeading("Co-pilot", Alignment.MID, pad);
+        if (second == null) {
+            tooltip.addPara("No co-pilot assigned.", Misc.getGrayColor(), pad);
+            return;
+        }
         TooltipMakerAPI text = tooltip.beginImageWithText(second.getPortraitSprite(), 48f);
-        text.addPara("Second officer: %s, level %s", 0f, Misc.getHighlightColor(),
-                second.getNameString(), "" + second.getStats().getLevel());
-
+        text.addPara("%s, level %s", 0f, h, second.getNameString(), "" + second.getStats().getLevel());
         List<SkillSpecAPI> skills = rsg_SecondOfficerSkills.getUniqueSkills(second, member.getCaptain());
         if (skills.isEmpty()) {
             text.addPara("All of their skills are already covered by the captain.", Misc.getGrayColor(), 3f);
@@ -81,11 +150,12 @@ public class rsg_DualCommandInterface extends BaseHullMod {
                 if (names.length() > 0) names.append(", ");
                 names.append(skill.getName());
                 String part = rsg_SecondOfficerSkills.getAppliedPart(second, member.getCaptain(), skill);
-                if (part != null) names.append(" (").append(part).append(")");
+                // only the elite markers are shown here
+                if (part != null && !"base".equals(part)) names.append(" (").append(part).append(")");
             }
-            text.addPara("Adds: %s", 3f, Misc.getHighlightColor(), names.toString());
+            text.addPara("Adding: %s", 3f, h, names.toString());
         }
-        tooltip.addImageWithText(opad);
+        tooltip.addImageWithText(pad);
     }
 
     /**

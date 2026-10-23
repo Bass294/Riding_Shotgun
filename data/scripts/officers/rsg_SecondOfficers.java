@@ -5,6 +5,8 @@ import com.fs.starfarer.api.campaign.CampaignFleetAPI;
 import com.fs.starfarer.api.campaign.FleetDataAPI;
 import com.fs.starfarer.api.characters.OfficerDataAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.combat.MutableStat;
+import com.fs.starfarer.api.combat.MutableStat.StatMod;
 import com.fs.starfarer.api.combat.ShipVariantAPI;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.util.Misc;
@@ -15,6 +17,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Tracks which officer sits in the second seat of which player ship.
@@ -65,6 +68,31 @@ public class rsg_SecondOfficers {
         map.put(member.getId(), person);
         member.updateStats();
         return null;
+    }
+
+    // captain -> co-pilot as of each player ship's creation for combat, so post-battle XP can still find the
+    // co-pilot of a ship that was lost (lost ships leave the fleet before XP is handed out). Weak keys.
+    private static final Map<PersonAPI, WeakReference<PersonAPI>> COMBAT_PAIRS = new WeakHashMap<PersonAPI, WeakReference<PersonAPI>>();
+
+    public static void recordCombatPair(PersonAPI captain, PersonAPI second) {
+        if (captain == null || second == null) return;
+        COMBAT_PAIRS.put(captain, new WeakReference<PersonAPI>(second));
+    }
+
+    /** The co-pilot flying with this captain: their current ship's, or failing that, the one recorded in combat. */
+    public static PersonAPI getSecondOfficerOfCaptain(PersonAPI captain) {
+        if (captain == null) return null;
+        FleetDataAPI fleetData = getPlayerFleetData();
+        if (fleetData != null) {
+            for (FleetMemberAPI member : fleetData.getMembersListCopy()) {
+                if (member.getCaptain() == captain) {
+                    PersonAPI second = get(member);
+                    if (second != null) return second;
+                }
+            }
+        }
+        WeakReference<PersonAPI> ref = COMBAT_PAIRS.get(captain);
+        return ref != null ? ref.get() : null;
     }
 
     /** Returns the player ship this officer is the second officer of, or null. */
@@ -138,15 +166,16 @@ public class rsg_SecondOfficers {
         if (member.getFleetData() != fleetData) return "The ship is not in your fleet.";
         if (member.isFighterWing() || member.getVariant() == null) return "Not a ship.";
         if (!hasDualCommand(member)) return "The ship does not have the Dual Command Interface.";
-        if (Misc.isAutomated(member)) return "Automated ships can't take a second officer.";
-        if (person.isPlayer()) return "You can't be a second officer.";
-        if (person.isAICore() || person.isDefault()) return "Only officers can be second officers.";
+        if (Misc.isAutomated(member)) return "Automated ships can't take a co-pilot.";
+        if (person.isPlayer()) return "You can't be a co-pilot.";
+        if (person.isAICore() || person.isDefault()) return "Only officers can be co-pilots.";
         if (fleetData.getOfficerData(person) == null) return person.getNameString() + " is not an officer in your fleet.";
         for (FleetMemberAPI other : fleetData.getMembersListCopy()) {
             if (other.getCaptain() == person) {
                 return person.getNameString() + " is already the captain of the " + other.getShipName() + ".";
             }
         }
+        if (person.hasTag(OE_SUSPENDED_TAG)) return person.getNameString() + " is suspended.";
         if (isPastMax(fleetData, person)) return person.getNameString() + " is over your officer limit.";
         return null;
     }
@@ -171,9 +200,21 @@ public class rsg_SecondOfficers {
         return variant != null && variant.hasHullMod(HULLMOD_ID);
     }
 
-    /** Same rule as the vanilla officer list: non-mercenary officers beyond the officer limit, in list order, can't serve. */
+    // Officer Extension (officerExtension) lets the player keep any number of officers and applies the limit only to
+    // officers serving on a ship; it marks suspended officers with this tag
+    private static final String OE_MOD_ID = "officerExtension";
+    private static final String OE_SUSPENDED_TAG = "$officerextension_IsSuspended";
+    // a flat bonus Officer Extension adds to the limit while an interaction dialog is open; not part of the real limit
+    private static final String OE_TEMP_LIMIT_ID = "officerextension_TempOfficerCount";
+
+    /**
+     * Same rule as the vanilla officer list: non-mercenary officers beyond the officer limit, in list order, can't
+     * serve. With Officer Extension, its rule instead: the limit counts officers serving on a ship, and co-pilots count
+     * as serving, so the second seat can't be used to go past it.
+     */
     public static boolean isPastMax(FleetDataAPI fleetData, PersonAPI person) {
         if (Misc.isMercenary(person)) return false;
+        if (Global.getSettings().getModManager().isModEnabled(OE_MOD_ID)) return isPastServingMax(fleetData, person);
         int max = Global.getSector().getPlayerStats().getOfficerNumber().getModifiedInt();
         int count = 0;
         for (OfficerDataAPI od : fleetData.getOfficersCopy()) {
@@ -183,6 +224,29 @@ public class rsg_SecondOfficers {
             count++;
         }
         return false;
+    }
+
+    /** Officer Extension's rule: past the limit if the other serving non-mercenary officers already fill it. */
+    private static boolean isPastServingMax(FleetDataAPI fleetData, PersonAPI person) {
+        Set<PersonAPI> serving = new HashSet<PersonAPI>();
+        for (FleetMemberAPI member : fleetData.getMembersListCopy()) {
+            if (member.getCaptain() != null) serving.add(member.getCaptain());
+        }
+        Map<String, PersonAPI> map = getMap(false);
+        // the seat assignments as stored; checking each one's validity here would recurse back into this check
+        if (map != null) serving.addAll(map.values());
+        serving.remove(person);
+
+        int count = 0;
+        for (OfficerDataAPI od : fleetData.getOfficersCopy()) {
+            PersonAPI p = od.getPerson();
+            if (p.isAICore() || p.isPlayer() || Misc.isMercenary(p)) continue;
+            if (serving.contains(p)) count++;
+        }
+        MutableStat limit = Global.getSector().getPlayerStats().getOfficerNumber();
+        StatMod temp = limit.getFlatStatMod(OE_TEMP_LIMIT_ID);
+        int max = (int) (limit.getModifiedValue() - (temp != null ? temp.getValue() : 0f));
+        return count >= max;
     }
 
     public static FleetMemberAPI findMember(FleetDataAPI fleetData, String memberId) {

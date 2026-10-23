@@ -1,9 +1,7 @@
 package data.scripts.patches;
 
-import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.ui.UIPanelAPI;
 import data.scripts.officers.rsg_SecondOfficerPicker;
-import org.apache.log4j.Logger;
 import patchlib.api.context.BeforeContext;
 import patchlib.api.match.ClassMatch;
 import patchlib.api.match.MethodMatch;
@@ -27,14 +25,10 @@ import patchlib.api.patch.Patch;
         }))
 public class rsg_FleetMemberPanelPatch {
 
-    private static final Logger log = Global.getLogger(rsg_FleetMemberPanelPatch.class);
-
     @Before(target = @MethodMatch(methodName = "dialogDismissed", parameterCount = 2))
-    public static void beforeDialogDismissed(BeforeContext ctx) {
-        try {
-            rsg_SecondOfficerPicker.onDismissed();
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't apply the second officer choice", t);
-        }
+    public static void beforeDialogDismissed(BeforeContext context) {
+        // a panel subclass calling super would apply the choice twice
+        if (!context.isMostDerivedCall()) return;
+        rsg_SecondOfficerPicker.onDismissed();
     }
 }

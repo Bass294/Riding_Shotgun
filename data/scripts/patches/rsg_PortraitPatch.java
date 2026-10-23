@@ -18,7 +18,6 @@ import com.fs.starfarer.api.util.Misc;
 import data.scripts.officers.rsg_SecondOfficers;
 import data.scripts.ui.rsg_PipPortrait;
 import data.scripts.ui.rsg_SecondOfficerTooltip;
-import org.apache.log4j.Logger;
 import patchlib.api.context.AfterContext;
 import patchlib.api.match.ClassMatch;
 import patchlib.api.match.MethodMatch;
@@ -53,8 +52,6 @@ import java.util.WeakHashMap;
                 @MethodMatch(methodName = "setMember", parameterCount = 1)
         }))
 public class rsg_PortraitPatch {
-
-    private static final Logger log = Global.getLogger(rsg_PortraitPatch.class);
 
     private static final float SIZE_FRACTION = 0.42f;
     private static final float MIN_SIZE = 14f;
@@ -97,49 +94,41 @@ public class rsg_PortraitPatch {
 
     /** Vanilla rebuilds every child here, so the old picture-in-picture is already gone. */
     @After(target = @MethodMatch(methodName = "sizeChanged", parameterCount = 2))
-    public static void afterSizeChanged(AfterContext ctx) {
-        try {
-            PatchData data = ctx.getData();
-            restoreTooltip(ctx, getOverlay(ctx.getSelf()));
-            OVERLAYS.remove(ctx.getSelf());
-            data.remove(KEY_PIP);
-            data.remove(KEY_PERSON);
-            data.remove(KEY_LEVEL);
-            update(ctx);
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't add the second officer portrait", t);
-        }
+    public static void afterSizeChanged(AfterContext context) {
+        PatchData data = context.getData();
+        restoreTooltip(context, getOverlay(context.getSelf()));
+        OVERLAYS.remove(context.getSelf());
+        data.remove(KEY_PIP);
+        data.remove(KEY_PERSON);
+        data.remove(KEY_LEVEL);
+        update(context);
     }
 
     /** Catches assignment and level changes while the portrait is shown, a few times a second. */
     @After(target = @MethodMatch(methodName = "advanceImpl", parameterCount = 1))
-    public static void afterAdvance(AfterContext ctx) {
-        try {
-            updateTooltip(ctx);
-            PatchData data = ctx.getData();
-            Float timer = data.get(KEY_TIMER);
-            float elapsed = (timer != null ? timer : 0f) + (Float) ctx.getArg(0);
-            if (elapsed < REFRESH_INTERVAL) {
-                data.put(KEY_TIMER, elapsed);
-                return;
-            }
-            data.put(KEY_TIMER, 0f);
-            update(ctx);
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't update the second officer portrait", t);
+    public static void afterAdvance(AfterContext context) {
+        updateTooltip(context);
+        PatchData data = context.getData();
+        Float timer = data.get(KEY_TIMER);
+        float elapsed = (timer != null ? timer : 0f) + (Float) context.getArg(0);
+        if (elapsed < REFRESH_INTERVAL) {
+            data.put(KEY_TIMER, elapsed);
+            return;
         }
+        data.put(KEY_TIMER, 0f);
+        update(context);
     }
 
-    private static void update(AfterContext ctx) {
-        PatchData data = ctx.getData();
-        UIPanelAPI portrait = (UIPanelAPI) ctx.getSelf();
-        PersonAPI second = findSecondOfficer(ctx);
+    private static void update(AfterContext context) {
+        PatchData data = context.getData();
+        UIPanelAPI portrait = (UIPanelAPI) context.getSelf();
+        PersonAPI second = findSecondOfficer(context);
         int level = second != null ? second.getStats().getLevel() : -1;
         // combat portraits carry the ship's side color; everywhere else this is null
-        Color tint = ctx.hasMethod(GET_COLOR) ? ctx.getMethod(GET_COLOR).call() : null;
+        Color tint = context.hasMethod(GET_COLOR) ? context.getMethod(GET_COLOR).call() : null;
         boolean sideBySide = Global.getCurrentState() == GameState.COMBAT;
         // an empty second seat gets a clickable empty portrait, but only where clicking can assign officers
-        boolean emptySeat = second == null && !sideBySide && hasEmptySeat(ctx);
+        boolean emptySeat = second == null && !sideBySide && hasEmptySeat(context);
 
         UIComponentAPI pip = data.get(KEY_PIP);
         Integer shownLevel = data.get(KEY_LEVEL);
@@ -149,11 +138,11 @@ public class rsg_PortraitPatch {
             portrait.bringComponentToTop(pip);
             return;
         }
-        UIComponentAPI vanillaPortrait = getVanillaPortrait(ctx);
+        UIComponentAPI vanillaPortrait = getVanillaPortrait(context);
         if (pip != null) {
-            if (pip instanceof CustomPanelAPI) restoreTooltip(ctx, (CustomPanelAPI) pip);
+            if (pip instanceof CustomPanelAPI) restoreTooltip(context, (CustomPanelAPI) pip);
             portrait.removeComponent(pip);
-            if (sideBySide && second == null) moveSkillList(ctx, vanillaPortrait, vanillaPortrait);
+            if (sideBySide && second == null) moveSkillList(context, vanillaPortrait, vanillaPortrait);
         }
         data.remove(KEY_PIP);
         data.remove(KEY_PERSON);
@@ -172,7 +161,7 @@ public class rsg_PortraitPatch {
                     ? Math.max(0f, (Math.min(width, height) - vanillaPortrait.getPosition().getWidth()) / 2f) : 1f;
             created = rsg_PipPortrait.create(second, width, height, inset, tint, true);
             portrait.addComponent(created).inBL(width + SIDE_GAP, 0f);
-            moveSkillList(ctx, vanillaPortrait, created);
+            moveSkillList(context, vanillaPortrait, created);
         } else {
             float size = Math.round(Math.min(width, height) * SIZE_FRACTION);
             if (size < MIN_SIZE) return;
@@ -191,22 +180,22 @@ public class rsg_PortraitPatch {
      * True for a fleet-screen portrait whose ship has the Dual Command Interface, and whose button can open the
      * officer picker, so an empty second seat can be shown and clicked.
      */
-    private static boolean hasEmptySeat(AfterContext ctx) {
+    private static boolean hasEmptySeat(AfterContext context) {
         if (Global.getCurrentState() != GameState.CAMPAIGN || isRefitTab()) return false;
-        Object member = ctx.hasMethod(GET_MEMBER) ? ctx.getMethod(GET_MEMBER).call() : null;
+        Object member = context.hasMethod(GET_MEMBER) ? context.getMethod(GET_MEMBER).call() : null;
         if (!(member instanceof FleetMemberAPI)) return false;
         FleetMemberAPI m = (FleetMemberAPI) member;
         if (m.isFighterWing() || m.getVariant() == null || Misc.isAutomated(m)) return false;
         if (m.getFleetData() == null || m.getFleetData() != rsg_SecondOfficers.getPlayerFleetData()) return false;
         if (!rsg_SecondOfficers.hasDualCommand(m)) return false;
-        return canAssign(ctx, getButton(ctx));
+        return canAssign(context, getButton(context));
     }
 
     /** Whether this portrait's button belongs to a screen that can open the officer picker. */
-    private static boolean canAssign(AfterContext ctx, Object button) {
-        if (button == null || !ctx.hasMethod(GET_LISTENER, button)) return false;
-        Object listener = ctx.getMethod(GET_LISTENER, button).call();
-        return listener != null && ctx.hasMethod(SHOW_PICKER, listener);
+    private static boolean canAssign(AfterContext context, Object button) {
+        if (button == null || !context.hasMethod(GET_LISTENER, button)) return false;
+        Object listener = context.getMethod(GET_LISTENER, button).call();
+        return listener != null && context.hasMethod(SHOW_PICKER, listener);
     }
 
     private static boolean isRefitTab() {
@@ -219,8 +208,8 @@ public class rsg_PortraitPatch {
      * over the corner overlay, give the button the second officer's tooltip instead, and put the captain's back when
      * it leaves. Only on portraits that assign officers, the same ones rsg_PortraitButtonPatch makes clickable.
      */
-    private static void updateTooltip(AfterContext ctx) {
-        CustomPanelAPI overlay = getOverlay(ctx.getSelf());
+    private static void updateTooltip(AfterContext context) {
+        CustomPanelAPI overlay = getOverlay(context.getSelf());
         if (overlay == null || !(overlay.getPlugin() instanceof rsg_PipPortrait)) return;
         rsg_PipPortrait plugin = (rsg_PipPortrait) overlay.getPlugin();
         boolean over = Global.getCurrentState() == GameState.CAMPAIGN && isMouseOver(overlay);
@@ -228,9 +217,9 @@ public class rsg_PortraitPatch {
         plugin.setLastMouse(Global.getSettings().getMouseX(), Global.getSettings().getMouseY());
         if (over == plugin.isTooltipSwapped()) return;
         if (!over) {
-            restoreTooltip(ctx, overlay);
+            restoreTooltip(context, overlay);
             // moved from the overlay onto the rest of the portrait (not off it): sound like entering the portrait
-            Object button = getButton(ctx);
+            Object button = getButton(context);
             if (button instanceof UIComponentAPI) {
                 PositionAPI p = ((UIComponentAPI) button).getPosition();
                 float x = Global.getSettings().getMouseX(), y = Global.getSettings().getMouseY();
@@ -241,13 +230,13 @@ public class rsg_PortraitPatch {
             return;
         }
 
-        Object button = getButton(ctx);
-        if (!canSwapTooltip(ctx, button)) return;
-        if (!canAssign(ctx, button)) return;
-        Object member = ctx.hasMethod(GET_MEMBER) ? ctx.getMethod(GET_MEMBER).call() : null;
+        Object button = getButton(context);
+        if (!canSwapTooltip(context, button)) return;
+        if (!canAssign(context, button)) return;
+        Object member = context.hasMethod(GET_MEMBER) ? context.getMethod(GET_MEMBER).call() : null;
         if (!(member instanceof FleetMemberAPI)) return;
 
-        Object captainTooltip = clearTooltip(ctx, button);
+        Object captainTooltip = clearTooltip(context, button);
         plugin.getElement().addTooltipTo(new rsg_SecondOfficerTooltip((FleetMemberAPI) member),
                 (UIComponentAPI) button, TooltipMakerAPI.TooltipLocation.BELOW);
         plugin.setTooltipSwapped(true, captainTooltip);
@@ -261,21 +250,21 @@ public class rsg_PortraitPatch {
     }
 
     /** Puts the captain's tooltip back on the portrait button if the overlay had swapped it out. */
-    private static void restoreTooltip(AfterContext ctx, CustomPanelAPI overlay) {
+    private static void restoreTooltip(AfterContext context, CustomPanelAPI overlay) {
         if (overlay == null || !(overlay.getPlugin() instanceof rsg_PipPortrait)) return;
         rsg_PipPortrait plugin = (rsg_PipPortrait) overlay.getPlugin();
         if (!plugin.isTooltipSwapped()) return;
         Object saved = plugin.getSavedTooltip();
         plugin.setTooltipSwapped(false, null);
-        Object button = getButton(ctx);
-        if (!canSwapTooltip(ctx, button)) return;
-        clearTooltip(ctx, button);
-        ctx.getMethod(SET_TOOLTIP, button).call(0f, saved);
+        Object button = getButton(context);
+        if (!canSwapTooltip(context, button)) return;
+        clearTooltip(context, button);
+        context.getMethod(SET_TOOLTIP, button).call(0f, saved);
     }
 
-    private static boolean canSwapTooltip(AfterContext ctx, Object button) {
-        return button instanceof UIComponentAPI && ctx.hasMethod(GET_TOOLTIP, button)
-                && ctx.hasMethod(REMOVE_TOOLTIP, button) && ctx.hasMethod(SET_TOOLTIP, button);
+    private static boolean canSwapTooltip(AfterContext context, Object button) {
+        return button instanceof UIComponentAPI && context.hasMethod(GET_TOOLTIP, button)
+                && context.hasMethod(REMOVE_TOOLTIP, button) && context.hasMethod(SET_TOOLTIP, button);
     }
 
     /**
@@ -283,15 +272,15 @@ public class rsg_PortraitPatch {
      * tooltip's hover logic; skipping it leaves the old logic registered as the screen's active tooltip, which
      * blocks the next tooltip from showing until the mouse leaves the button. Returns the tooltip taken off.
      */
-    private static Object clearTooltip(AfterContext ctx, Object button) {
-        Object current = ctx.getMethod(GET_TOOLTIP, button).call();
-        if (current != null) ctx.getMethod(REMOVE_TOOLTIP, button).call(current);
-        ctx.getMethod(SET_TOOLTIP, button).call(0f, null);
+    private static Object clearTooltip(AfterContext context, Object button) {
+        Object current = context.getMethod(GET_TOOLTIP, button).call();
+        if (current != null) context.getMethod(REMOVE_TOOLTIP, button).call(current);
+        context.getMethod(SET_TOOLTIP, button).call(0f, null);
         return current;
     }
 
-    private static Object getButton(AfterContext ctx) {
-        return ctx.hasMethod(GET_BUTTON) ? ctx.getMethod(GET_BUTTON).call() : null;
+    private static Object getButton(AfterContext context) {
+        return context.hasMethod(GET_BUTTON) ? context.getMethod(GET_BUTTON).call() : null;
     }
 
     private static boolean isMouseOver(CustomPanelAPI overlay) {
@@ -301,9 +290,9 @@ public class rsg_PortraitPatch {
         return x >= p.getX() && x <= p.getX() + p.getWidth() && y >= p.getY() && y <= p.getY() + p.getHeight();
     }
 
-    private static UIComponentAPI getVanillaPortrait(AfterContext ctx) {
-        if (!ctx.hasMethod(GET_PORTRAIT)) return null;
-        Object portrait = ctx.getMethod(GET_PORTRAIT).call();
+    private static UIComponentAPI getVanillaPortrait(AfterContext context) {
+        if (!context.hasMethod(GET_PORTRAIT)) return null;
+        Object portrait = context.getMethod(GET_PORTRAIT).call();
         return portrait instanceof UIComponentAPI ? (UIComponentAPI) portrait : null;
     }
 
@@ -312,9 +301,9 @@ public class rsg_PortraitPatch {
      * portrait goes, so move the list past it (or back next to the vanilla portrait). The list is the only child
      * panel besides the vanilla portrait and ours; the level labels are not panels.
      */
-    private static void moveSkillList(AfterContext ctx, UIComponentAPI vanillaPortrait, UIComponentAPI anchor) {
-        if (anchor == null || !ctx.hasMethod(GET_CHILDREN)) return;
-        List<?> children = ctx.getMethod(GET_CHILDREN).call();
+    private static void moveSkillList(AfterContext context, UIComponentAPI vanillaPortrait, UIComponentAPI anchor) {
+        if (anchor == null || !context.hasMethod(GET_CHILDREN)) return;
+        List<?> children = context.getMethod(GET_CHILDREN).call();
         for (Object child : children) {
             if (child == anchor || child == vanillaPortrait || !(child instanceof UIPanelAPI)) continue;
             if (child instanceof CustomPanelAPI) continue;
@@ -322,26 +311,26 @@ public class rsg_PortraitPatch {
         }
     }
 
-    private static PersonAPI findSecondOfficer(AfterContext ctx) {
+    private static PersonAPI findSecondOfficer(AfterContext context) {
         GameState state = Global.getCurrentState();
         if (state == GameState.CAMPAIGN && isRefitTab()) return null;
 
         // the fleet screen tells the portrait which ship it belongs to
-        if (ctx.hasMethod(GET_MEMBER)) {
-            Object member = ctx.getMethod(GET_MEMBER).call();
+        if (context.hasMethod(GET_MEMBER)) {
+            Object member = context.getMethod(GET_MEMBER).call();
             if (member instanceof FleetMemberAPI) return rsg_SecondOfficers.get((FleetMemberAPI) member);
         }
 
         // a combat reticle portrait knows its ship; the captain lookup below can't tell apart two ships the player
         // captains at once (Neural Link)
         if (state == GameState.COMBAT) {
-            ShipAPI ship = rsg_CombatReticlePatch.getShip(ctx.getSelf());
+            ShipAPI ship = rsg_CombatReticlePatch.getShip(context.getSelf());
             if (ship != null) return rsg_SecondOfficers.get(ship.getFleetMember());
         }
 
         // otherwise (tooltips, other combat portraits) find the ship this captain commands
-        if (!ctx.hasMethod(GET_PERSON)) return null;
-        Object captain = ctx.getMethod(GET_PERSON).call();
+        if (!context.hasMethod(GET_PERSON)) return null;
+        Object captain = context.getMethod(GET_PERSON).call();
         if (!(captain instanceof PersonAPI) || ((PersonAPI) captain).isDefault()) return null;
         if (state == GameState.COMBAT) {
             CombatEngineAPI engine = Global.getCombatEngine();

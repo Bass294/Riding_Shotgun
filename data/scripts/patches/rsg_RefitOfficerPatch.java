@@ -11,7 +11,6 @@ import com.fs.starfarer.api.ui.UIPanelAPI;
 import data.scripts.officers.rsg_SecondOfficerPicker;
 import data.scripts.officers.rsg_SecondOfficers;
 import data.scripts.ui.rsg_SecondOfficerSlot;
-import org.apache.log4j.Logger;
 import patchlib.api.context.AfterContext;
 import patchlib.api.context.BeforeContext;
 import patchlib.api.match.ClassMatch;
@@ -46,7 +45,6 @@ import java.util.List;
         }))
 public class rsg_RefitOfficerPatch {
 
-    private static final Logger log = Global.getLogger(rsg_RefitOfficerPatch.class);
     private static final float GAP = 10f;
     private static final String KEY_SLOT = "rsg_second_officer_slot";
 
@@ -67,19 +65,17 @@ public class rsg_RefitOfficerPatch {
 
     /** The box clears and rebuilds its children here, so any slot added before is gone. */
     @After(target = @MethodMatch(methodName = "setFleetMember", parameterCount = 1))
-    public static void afterSetFleetMember(AfterContext ctx) {
-        try {
-            ctx.getData().remove(KEY_SLOT);
-            Object arg = ctx.getArg(0);
-            // right-clicking the vanilla portrait empties the captain's seat and rebuilds this box; fill it with the
-            // second officer before the slot is drawn (the vanilla portrait follows the captain by itself)
-            if (arg instanceof FleetMemberAPI && Global.getCurrentState() == GameState.CAMPAIGN) {
-                rsg_SecondOfficers.promoteIfCaptainless((FleetMemberAPI) arg);
-            }
-            if (arg instanceof FleetMemberAPI) updateSlot(ctx, (FleetMemberAPI) arg, ((FleetMemberAPI) arg).getVariant());
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't add the second officer slot to the refit screen", t);
+    public static void afterSetFleetMember(AfterContext context) {
+        // a box subclass calling super would rebuild the slot twice
+        if (!context.isMostDerivedCall()) return;
+        context.getData().remove(KEY_SLOT);
+        Object arg = context.getArg(0);
+        // right-clicking the vanilla portrait empties the captain's seat and rebuilds this box; fill it with the
+        // second officer before the slot is drawn (the vanilla portrait follows the captain by itself)
+        if (arg instanceof FleetMemberAPI && Global.getCurrentState() == GameState.CAMPAIGN) {
+            rsg_SecondOfficers.promoteIfCaptainless((FleetMemberAPI) arg);
         }
+        if (arg instanceof FleetMemberAPI) updateSlot(context, (FleetMemberAPI) arg, ((FleetMemberAPI) arg).getVariant());
     }
 
     /**
@@ -87,55 +83,49 @@ public class rsg_RefitOfficerPatch {
      * shows or hides the slot right away.
      */
     @After(target = @MethodMatch(methodName = "syncWithVariant", parameterCount = 1))
-    public static void afterSyncWithVariant(AfterContext ctx) {
-        try {
-            if (!ctx.hasField(MEMBER)) return;
-            Object member = ctx.getField(MEMBER).get();
-            Object variant = ctx.getArg(0);
-            if (member instanceof FleetMemberAPI) {
-                updateSlot(ctx, (FleetMemberAPI) member, variant instanceof ShipVariantAPI ? (ShipVariantAPI) variant : null);
-            }
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't update the second officer slot", t);
+    public static void afterSyncWithVariant(AfterContext context) {
+        if (!context.isMostDerivedCall()) return;
+        if (!context.hasField(MEMBER)) return;
+        Object member = context.getField(MEMBER).get();
+        Object variant = context.getArg(0);
+        if (member instanceof FleetMemberAPI) {
+            updateSlot(context, (FleetMemberAPI) member, variant instanceof ShipVariantAPI ? (ShipVariantAPI) variant : null);
         }
     }
 
     /** The picker closing reports back here; apply the second officer choice before vanilla refreshes the screen. */
     @Before(target = @MethodMatch(methodName = "dialogDismissed", parameterCount = 2))
-    public static void beforeDialogDismissed(BeforeContext ctx) {
-        try {
-            rsg_SecondOfficerPicker.onDismissed();
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't apply the second officer choice", t);
-        }
+    public static void beforeDialogDismissed(BeforeContext context) {
+        if (!context.isMostDerivedCall()) return;
+        rsg_SecondOfficerPicker.onDismissed();
     }
 
     /** Adds or removes the slot so it matches whether the variant on screen has the hullmod. */
-    private static void updateSlot(AfterContext ctx, FleetMemberAPI member, ShipVariantAPI variant) {
+    private static void updateSlot(AfterContext context, FleetMemberAPI member, ShipVariantAPI variant) {
         if (Global.getCurrentState() == GameState.CAMPAIGN) rsg_SecondOfficers.setRefitVariant(member, variant);
-        if (!ctx.hasField(PORTRAIT)) return;
-        ButtonAPI portrait = ctx.<ButtonAPI>getField(PORTRAIT).get();
+        if (!context.hasField(PORTRAIT)) return;
+        ButtonAPI portrait = context.<ButtonAPI>getField(PORTRAIT).get();
         if (portrait == null) return;
-        UIPanelAPI box = (UIPanelAPI) ctx.getSelf();
-        PatchData data = ctx.getData();
+        UIPanelAPI box = (UIPanelAPI) context.getSelf();
+        PatchData data = context.getData();
         UIComponentAPI slot = data.get(KEY_SLOT);
 
         boolean wanted = Global.getCurrentState() == GameState.CAMPAIGN
                 && !member.isFighterWing()
                 && variant != null && variant.hasHullMod(rsg_SecondOfficers.HULLMOD_ID)
                 && member.getFleetData() != null && member.getFleetData() == rsg_SecondOfficers.getPlayerFleetData()
-                && ctx.hasMethod(SHOW_PICKER);
+                && context.hasMethod(SHOW_PICKER);
         if (wanted == (slot != null)) return;
 
         if (slot != null) {
             box.removeComponent(slot);
             data.remove(KEY_SLOT);
-            moveReadout(ctx, slot, portrait);
+            moveReadout(context, slot, portrait);
             return;
         }
 
-        MethodRef showPicker = ctx.getMethod(SHOW_PICKER);
-        Runnable refresh = createRefresh(ctx, member);
+        MethodRef showPicker = context.getMethod(SHOW_PICKER);
+        Runnable refresh = createRefresh(context, member);
         CustomPanelAPI created = rsg_SecondOfficerSlot.create(member, portrait.getPosition().getWidth(),
                 () -> rsg_SecondOfficerPicker.open(member, showPicker),
                 () -> {
@@ -144,33 +134,33 @@ public class rsg_RefitOfficerPatch {
                 });
         box.addComponent(created).rightOfTop(portrait, GAP);
         data.putWeak(KEY_SLOT, created);
-        moveReadout(ctx, created, created);
+        moveReadout(context, created, created);
     }
 
     /** Puts the in-space refit CR readout right of the given anchor (the slot, or the vanilla portrait again). */
-    private static void moveReadout(AfterContext ctx, UIComponentAPI slot, UIComponentAPI anchor) {
-        if (!ctx.hasMethod(GET_CHILDREN)) return;
-        List<?> children = ctx.getMethod(GET_CHILDREN).call();
+    private static void moveReadout(AfterContext context, UIComponentAPI slot, UIComponentAPI anchor) {
+        if (!context.hasMethod(GET_CHILDREN)) return;
+        List<?> children = context.getMethod(GET_CHILDREN).call();
         for (Object child : children) {
-            if (child != slot && child instanceof UIComponentAPI && ctx.hasMethod(SET_FLIPPED, child)) {
+            if (child != slot && child instanceof UIComponentAPI && context.hasMethod(SET_FLIPPED, child)) {
                 ((UIComponentAPI) child).getPosition().rightOfTop(anchor, GAP);
             }
         }
     }
 
     /** Rebuilds the refit screen the same way vanilla does after the captain changes, keeping its "edited" flags. */
-    private static Runnable createRefresh(AfterContext ctx, FleetMemberAPI member) {
-        Object refitPanel = ctx.hasMethod(GET_PARENT) ? ctx.getMethod(GET_PARENT).call() : null;
-        if (refitPanel == null || !ctx.hasMethod(RECREATE_UI, refitPanel)
-                || !ctx.hasMethod(IS_EDITED_SINCE_SAVE, refitPanel) || !ctx.hasMethod(SET_EDITED_SINCE_SAVE, refitPanel)
-                || !ctx.hasMethod(IS_EDITED_SINCE_LOAD, refitPanel) || !ctx.hasMethod(SET_EDITED_SINCE_LOAD, refitPanel)) {
+    private static Runnable createRefresh(AfterContext context, FleetMemberAPI member) {
+        Object refitPanel = context.hasMethod(GET_PARENT) ? context.getMethod(GET_PARENT).call() : null;
+        if (refitPanel == null || !context.hasMethod(RECREATE_UI, refitPanel)
+                || !context.hasMethod(IS_EDITED_SINCE_SAVE, refitPanel) || !context.hasMethod(SET_EDITED_SINCE_SAVE, refitPanel)
+                || !context.hasMethod(IS_EDITED_SINCE_LOAD, refitPanel) || !context.hasMethod(SET_EDITED_SINCE_LOAD, refitPanel)) {
             return member::updateStats;
         }
-        MethodRef recreate = ctx.getMethod(RECREATE_UI, refitPanel);
-        MethodRef isEditedSinceSave = ctx.getMethod(IS_EDITED_SINCE_SAVE, refitPanel);
-        MethodRef isEditedSinceLoad = ctx.getMethod(IS_EDITED_SINCE_LOAD, refitPanel);
-        MethodRef setEditedSinceSave = ctx.getMethod(SET_EDITED_SINCE_SAVE, refitPanel);
-        MethodRef setEditedSinceLoad = ctx.getMethod(SET_EDITED_SINCE_LOAD, refitPanel);
+        MethodRef recreate = context.getMethod(RECREATE_UI, refitPanel);
+        MethodRef isEditedSinceSave = context.getMethod(IS_EDITED_SINCE_SAVE, refitPanel);
+        MethodRef isEditedSinceLoad = context.getMethod(IS_EDITED_SINCE_LOAD, refitPanel);
+        MethodRef setEditedSinceSave = context.getMethod(SET_EDITED_SINCE_SAVE, refitPanel);
+        MethodRef setEditedSinceLoad = context.getMethod(SET_EDITED_SINCE_LOAD, refitPanel);
         return () -> {
             Object save = isEditedSinceSave.call();
             Object load = isEditedSinceLoad.call();

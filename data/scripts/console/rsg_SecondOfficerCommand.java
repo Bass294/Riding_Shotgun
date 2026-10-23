@@ -54,7 +54,7 @@ public class rsg_SecondOfficerCommand implements BaseCommand {
                 if (member.getCaptain() == officer.getPerson()) {
                     Console.showMessage("The " + member.getShipName() + " had no captain, so " + officer.getPerson().getNameString() + " is now its captain.");
                 } else {
-                    Console.showMessage(officer.getPerson().getNameString() + " is now the second officer of the " + member.getShipName() + ".");
+                    Console.showMessage(officer.getPerson().getNameString() + " is now the co-pilot of the " + member.getShipName() + ".");
                 }
                 return CommandResult.SUCCESS;
             }
@@ -76,7 +76,7 @@ public class rsg_SecondOfficerCommand implements BaseCommand {
                     return CommandResult.ERROR;
                 }
                 rsg_SecondOfficers.clear(member);
-                Console.showMessage("Cleared the second officer of the " + member.getShipName() + ".");
+                Console.showMessage("Cleared the co-pilot of the " + member.getShipName() + ".");
                 return CommandResult.SUCCESS;
             }
             default:
@@ -112,11 +112,11 @@ public class rsg_SecondOfficerCommand implements BaseCommand {
     private static void showSkills(FleetMemberAPI member) {
         PersonAPI second = rsg_SecondOfficers.get(member);
         if (second == null) {
-            Console.showMessage("The " + member.getShipName() + " has no second officer.");
+            Console.showMessage("The " + member.getShipName() + " has no co-pilot.");
             return;
         }
         PersonAPI captain = member.getCaptain();
-        StringBuilder sb = new StringBuilder("Second officer " + describe(second) + " of the " + member.getShipName()
+        StringBuilder sb = new StringBuilder("Co-pilot " + describe(second) + " of the " + member.getShipName()
                 + ", captain " + describe(captain) + ":\n");
         for (SkillLevelAPI sl : second.getStats().getSkillsCopy()) {
             SkillSpecAPI skill = sl.getSkill();
@@ -132,7 +132,7 @@ public class rsg_SecondOfficerCommand implements BaseCommand {
     private static String getStatus(List<FleetMemberAPI> members, PersonAPI person) {
         for (FleetMemberAPI member : members) {
             if (member.getCaptain() == person) return "captain of the " + member.getShipName();
-            if (rsg_SecondOfficers.get(member) == person) return "second officer of the " + member.getShipName();
+            if (rsg_SecondOfficers.get(member) == person) return "co-pilot of the " + member.getShipName();
         }
         return "unassigned";
     }

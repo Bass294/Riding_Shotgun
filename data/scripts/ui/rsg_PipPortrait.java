@@ -100,8 +100,13 @@ public class rsg_PipPortrait extends BaseCustomUIPanelPlugin {
         float x = pos.getX(), y = pos.getY(), w = pos.getWidth(), h = pos.getHeight();
         // the overlay sits on top of another portrait, so give it a backing to separate the two
         if (!sideBySide) rsg_Draw.quad(x, y, w, h, Color.black, alphaMult, false);
-        String sprite = person != null ? person.getPortraitSprite() : Global.getSettings().getSpriteName("misc", "default_portrait");
-        rsg_Draw.portrait(sprite, x + inset, y + inset, w - 2f * inset, h - 2f * inset, alphaMult, tint);
+        if (person != null) {
+            rsg_Draw.portrait(person.getPortraitSprite(), x + inset, y + inset, w - 2f * inset, h - 2f * inset, alphaMult, tint);
+        } else {
+            // an empty seat looks like vanilla's: the grayscale default portrait in the player faction's color
+            rsg_Draw.portrait(rsg_Draw.getEmptySeatSprite(), x + inset, y + inset, w - 2f * inset, h - 2f * inset, alphaMult,
+                    tint != null ? tint : rsg_Draw.getEmptySeatTint());
+        }
     }
 
     @Override

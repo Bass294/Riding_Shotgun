@@ -41,6 +41,11 @@ public class rsg_SecondOfficerPicker {
         return standIn != null;
     }
 
+    /** The stand-in if this officer is its captain, i.e. the officer currently in the seat being picked for. */
+    public static FleetMemberAPI getStandInFor(PersonAPI person) {
+        return standIn != null && person != null && standIn.getCaptain() == person ? standIn : null;
+    }
+
     public static boolean isStandIn(Object member) {
         return member != null && member == standIn;
     }

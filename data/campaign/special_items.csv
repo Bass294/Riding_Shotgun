@@ -1,0 +1,2 @@
+name,id,tags,tech/manufacturer,rarity,base price,stack size,cargo space,baseRaidDanger,icon,sound id,sound id drop,plugin,plugin params,desc,order
+Gemini Core,rsg_gemini_core,,Domain,,50000,1000,1,,graphics/icons/cargo/duelcore_cargo.png,ui_cargo_special_ultratech_pickup,ui_cargo_special_ultratech_drop,data.scripts.items.rsg_GeminiCoreItemPlugin,rsg_dual_command,"The husk of an experimental dual-core AI prototype. The neural bridge interface is intact, and can be installed into the command console of a ship's bridge.",1000

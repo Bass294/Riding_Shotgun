@@ -9,7 +9,6 @@ import com.fs.starfarer.api.ui.CustomPanelAPI;
 import com.fs.starfarer.api.ui.PositionAPI;
 import data.scripts.officers.rsg_SecondOfficerPicker;
 import data.scripts.officers.rsg_SecondOfficers;
-import org.apache.log4j.Logger;
 import patchlib.api.context.BeforeContext;
 import patchlib.api.match.ClassMatch;
 import patchlib.api.match.MethodMatch;
@@ -38,44 +37,38 @@ import patchlib.api.spec.MethodQuerySpec;
         }))
 public class rsg_PortraitButtonPatch {
 
-    private static final Logger log = Global.getLogger(rsg_PortraitButtonPatch.class);
-
     private static final MethodQuerySpec GET_BUTTON_PANEL = MethodQuery.create().methodName("getButtonPanel").parameterCount(0).build();
     private static final MethodQuerySpec GET_LISTENER = MethodQuery.create().methodName("getListener").parameterCount(0).build();
     private static final MethodQuerySpec GET_MEMBER = MethodQuery.create().methodName("getMember").parameterCount(0).build();
     private static final MethodQuerySpec SHOW_PICKER = MethodQuery.create().methodName("showCaptainPickerDialog").parameterCount(1).build();
 
     @Before(target = @MethodMatch(methodName = "buttonPressed", parameterCount = 2))
-    public static void beforeButtonPressed(BeforeContext ctx) {
-        try {
-            // a button subclass calling super would run this twice and open two pickers
-            if (!ctx.isMostDerivedCall()) return;
-            // another mod's earlier hook already took this press
-            if (ctx.isSkipOriginal()) return;
-            if (Global.getCurrentState() != GameState.CAMPAIGN || !ctx.hasMethod(GET_BUTTON_PANEL)) return;
-            Object portrait = ctx.getMethod(GET_BUTTON_PANEL).call();
-            if (portrait == null) return;
-            CustomPanelAPI overlay = rsg_PortraitPatch.getOverlay(portrait);
-            if (overlay == null || !isMouseOver(overlay)) return;
-            Object event = ctx.getArg(0);
-            if (!(event instanceof InputEventAPI) || ((InputEventAPI) event).isKeyboardEvent()) return;
-            if (!ctx.hasMethod(GET_MEMBER, portrait)) return;
-            Object member = ctx.getMethod(GET_MEMBER, portrait).call();
-            if (!(member instanceof FleetMemberAPI)) return;
-            // only portraits that assign officers (their listener can open the picker); not ones in tooltips etc
-            Object listener = ctx.hasMethod(GET_LISTENER) ? ctx.getMethod(GET_LISTENER).call() : null;
-            if (listener == null || !ctx.hasMethod(SHOW_PICKER, listener)) return;
+    public static void beforeButtonPressed(BeforeContext context) {
+        // a button subclass calling super would run this twice and open two pickers
+        if (!context.isMostDerivedCall()) return;
+        // another mod's earlier hook already took this press
+        if (context.isSkipOriginal()) return;
+        if (Global.getCurrentState() != GameState.CAMPAIGN || !context.hasMethod(GET_BUTTON_PANEL)) return;
+        Object portrait = context.getMethod(GET_BUTTON_PANEL).call();
+        if (portrait == null) return;
+        CustomPanelAPI overlay = rsg_PortraitPatch.getOverlay(portrait);
+        if (overlay == null || !isMouseOver(overlay)) return;
+        Object event = context.getArg(0);
+        if (!(event instanceof InputEventAPI) || ((InputEventAPI) event).isKeyboardEvent()) return;
+        if (!context.hasMethod(GET_MEMBER, portrait)) return;
+        Object member = context.getMethod(GET_MEMBER, portrait).call();
+        if (!(member instanceof FleetMemberAPI)) return;
+        // only portraits that assign officers (their listener can open the picker); not ones in tooltips etc
+        Object listener = context.hasMethod(GET_LISTENER) ? context.getMethod(GET_LISTENER).call() : null;
+        if (listener == null || !context.hasMethod(SHOW_PICKER, listener)) return;
 
-            if (((InputEventAPI) event).isRMBEvent()) {
-                rsg_SecondOfficers.clear((FleetMemberAPI) member);
-            } else {
-                rsg_SecondOfficerPicker.open((FleetMemberAPI) member, ctx.getMethod(SHOW_PICKER, listener));
-            }
-            Global.getSoundPlayer().playUISound("ui_button_pressed", 1f, 1f);
-            ctx.skipOriginal(null);
-        } catch (Throwable t) {
-            log.error("Riding Shotgun: couldn't handle a click on the second officer portrait", t);
+        if (((InputEventAPI) event).isRMBEvent()) {
+            rsg_SecondOfficers.clear((FleetMemberAPI) member);
+        } else {
+            rsg_SecondOfficerPicker.open((FleetMemberAPI) member, context.getMethod(SHOW_PICKER, listener));
         }
+        Global.getSoundPlayer().playUISound("ui_button_pressed", 1f, 1f);
+        context.skipOriginal(null);
     }
 
     private static boolean isMouseOver(CustomPanelAPI overlay) {

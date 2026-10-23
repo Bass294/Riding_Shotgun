@@ -51,9 +51,9 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
         FactionAPI player = Global.getSector().getPlayerFaction();
 
         if (second == null) {
-            tooltip.addTitle("Second officer", player.getBaseUIColor());
-            tooltip.addPara("Assign an officer to serve alongside the captain. Their combat skills apply to the ship, "
-                    + "except for skills the captain already has.", opad);
+            tooltip.addTitle("Co-pilot", player.getBaseUIColor());
+            tooltip.addPara("Assign an officer to serve alongside the captain. The ship benefits from their "
+                    + "non-duplicate combat skills.", opad);
             return;
         }
 
@@ -66,7 +66,7 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
         title.setHighlight(suffix);
         title.setHighlightColor(Misc.getGrayColor());
 
-        tooltip.addPara("Level %s, second officer of the %s", opad, Misc.getHighlightColor(),
+        tooltip.addPara("Level %s, co-pilot of the %s", opad, Misc.getHighlightColor(),
                 "" + second.getStats().getLevel(), member.getShipName());
 
         tooltip.addSectionHeading("Personality: " + second.getPersonalityAPI().getDisplayName().toLowerCase(),
@@ -125,11 +125,11 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
         }
         if (!eliteOnly.isEmpty()) {
             String names = Misc.getAndJoined(eliteOnly);
-            tooltip.addPara("Only the elite effects of %s apply; the captain already has the base skill.",
+            tooltip.addPara("Only the elite effects of %s apply; the skill is already known by the captain.",
                     opad, Misc.getGrayColor(), Misc.getHighlightColor(), names);
         }
         if (anyCovered) {
-            tooltip.addPara("Already covered by the captain:", Misc.getGrayColor(), opad);
+            tooltip.addPara("Already known by the captain:", Misc.getGrayColor(), opad);
             UIComponentAPI panel = tooltip.addSkillPanel(covered, pad);
             panel.setOpacity(DUPLICATE_OPACITY);
         }
