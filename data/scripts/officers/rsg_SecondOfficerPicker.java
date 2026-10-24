@@ -62,7 +62,11 @@ public class rsg_SecondOfficerPicker {
         return rsg_SecondOfficers.getMemberWithSecondOfficer(person);
     }
 
-    /** Applies the picker's choice. Called when the refit officer box is told the dialog closed. */
+    /**
+     * Applies the picker's choice. Called when the refit officer box is told the dialog closed. For AI cores the
+     * picker has already moved the cores themselves (the new one out of cargo or off its ship, the old one back), so
+     * only the seat changes here.
+     */
     public static void onDismissed() {
         if (standIn == null) return;
         PersonAPI picked = standIn.getCaptain();
@@ -71,12 +75,17 @@ public class rsg_SecondOfficerPicker {
         reset();
 
         if (picked == null || picked.isDefault()) {
-            if (previous != null) rsg_SecondOfficers.clear(member);
+            if (previous != null) rsg_SecondOfficers.release(member);
             return;
         }
         if (picked == previous) return;
         String error = rsg_SecondOfficers.set(member, picked);
         if (error != null) {
+            if (picked.isAICore()) {
+                // the picker took the core and gave the old one back already; don't let either go missing
+                rsg_SecondOfficers.release(member);
+                rsg_SecondOfficers.returnCoreToCargo(picked);
+            }
             Global.getSector().getCampaignUI().getMessageDisplay().addMessage(error, Misc.getNegativeHighlightColor());
         }
     }

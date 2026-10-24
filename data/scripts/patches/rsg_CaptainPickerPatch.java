@@ -23,6 +23,9 @@ public class rsg_CaptainPickerPatch {
 
     private static final String VANILLA_TITLE = "Select captain for the ";
     private static final String TITLE = "Select co-pilot for the ";
+    // the picker's title for automated ships, which lists AI cores
+    private static final String VANILLA_CORE_TITLE = "Select AI core to put in charge of ";
+    private static final String CORE_TITLE = "Select AI core co-pilot for the ";
 
     // the ship the picker was opened for; the dialog's only FleetMember field
     private static final FieldQuerySpec MEMBER = FieldQuery.create().typeName("com.fs.starfarer.campaign.fleet.FleetMember").build();
@@ -33,10 +36,14 @@ public class rsg_CaptainPickerPatch {
             constructor = @MethodMatch(parameterCount = 5))
     public static void redirectTitleLabel(ConstructorCallContext context) {
         Object text = context.getCallArg(0);
-        if (text instanceof String && ((String) text).startsWith(VANILLA_TITLE)
-                && rsg_SecondOfficerPicker.isOpen() && context.hasField(MEMBER)
+        if (text instanceof String && rsg_SecondOfficerPicker.isOpen() && context.hasField(MEMBER)
                 && rsg_SecondOfficerPicker.isStandIn(context.getField(MEMBER).get())) {
-            context.setCallArg(0, TITLE + ((String) text).substring(VANILLA_TITLE.length()));
+            String title = (String) text;
+            if (title.startsWith(VANILLA_TITLE)) {
+                context.setCallArg(0, TITLE + title.substring(VANILLA_TITLE.length()));
+            } else if (title.startsWith(VANILLA_CORE_TITLE)) {
+                context.setCallArg(0, CORE_TITLE + title.substring(VANILLA_CORE_TITLE.length()));
+            }
         }
         context.setResult(context.call());
     }

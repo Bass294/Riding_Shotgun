@@ -18,6 +18,7 @@ import java.util.List;
  * and friends), with the same effect ids, but skips every effect the captain already gets.
  * Skipping matters: some skills (Combat Endurance, Polarized Armor...) add a listener on every apply and remove all
  * listeners of their class on unapply, so applying a shared skill twice would stack or cancel it.
+ * Modded skills apply only if rsg_SkillWhitelist supports them.
  */
 public class rsg_SecondOfficerSkills {
 
@@ -53,6 +54,7 @@ public class rsg_SecondOfficerSkills {
         for (SkillLevelAPI sl : second.getStats().getSkillsCopy()) {
             SkillSpecAPI skill = sl.getSkill();
             if (!skill.isCombatOfficerSkill() || sl.getLevel() <= 0) continue;
+            if (!rsg_SkillWhitelist.isSupported(skill.getId())) continue;
             boolean adds = false;
             for (SkillEffectSpecAPI effect : skill.getEffectsAPI()) {
                 String governing = getGoverningSkill(effect, skill);
@@ -69,6 +71,7 @@ public class rsg_SecondOfficerSkills {
 
     /** Which part of a skill the second officer adds: "elite", "elite effects only", "base", or null if nothing. */
     public static String getAppliedPart(PersonAPI second, PersonAPI captain, SkillSpecAPI skill) {
+        if (!rsg_SkillWhitelist.isSupported(skill.getId())) return null;
         float secondLevel = second.getStats().getSkillLevel(skill.getId());
         float captainLevel = captain != null && captain.getStats() != null ? captain.getStats().getSkillLevel(skill.getId()) : 0f;
         if (secondLevel <= 0 || captainLevel >= secondLevel) return null;
@@ -81,6 +84,8 @@ public class rsg_SecondOfficerSkills {
         if (second == null || second.getStats() == null) return result;
         for (SkillLevelAPI sl : second.getStats().getSkillsCopy()) {
             SkillSpecAPI skill = sl.getSkill();
+            // modded skills not on the whitelist may not work from the second seat (rsg_SkillWhitelist)
+            if (!rsg_SkillWhitelist.isSupported(skill.getId())) continue;
             int index = 0;
             for (SkillEffectSpecAPI effect : skill.getEffectsAPI()) {
                 // vanilla counts every effect of the skill when building the id, whatever its type

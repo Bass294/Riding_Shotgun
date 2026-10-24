@@ -14,7 +14,6 @@ import com.fs.starfarer.api.ui.PositionAPI;
 import com.fs.starfarer.api.ui.TooltipMakerAPI;
 import com.fs.starfarer.api.ui.UIComponentAPI;
 import com.fs.starfarer.api.ui.UIPanelAPI;
-import com.fs.starfarer.api.util.Misc;
 import data.scripts.officers.rsg_SecondOfficers;
 import data.scripts.ui.rsg_PipPortrait;
 import data.scripts.ui.rsg_SecondOfficerTooltip;
@@ -185,8 +184,8 @@ public class rsg_PortraitPatch {
         Object member = context.hasMethod(GET_MEMBER) ? context.getMethod(GET_MEMBER).call() : null;
         if (!(member instanceof FleetMemberAPI)) return false;
         FleetMemberAPI m = (FleetMemberAPI) member;
-        if (m.isFighterWing() || m.getVariant() == null || Misc.isAutomated(m)) return false;
-        if (m.getFleetData() == null || m.getFleetData() != rsg_SecondOfficers.getPlayerFleetData()) return false;
+        if (m.isFighterWing() || m.getVariant() == null) return false;
+        if (!rsg_SecondOfficers.isInPlayerFleet(m, rsg_SecondOfficers.getPlayerFleetData())) return false;
         if (!rsg_SecondOfficers.hasDualCommand(m)) return false;
         return canAssign(context, getButton(context));
     }

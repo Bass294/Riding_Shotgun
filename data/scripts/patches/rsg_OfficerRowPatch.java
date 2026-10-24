@@ -3,6 +3,7 @@ package data.scripts.patches;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.campaign.FleetDataAPI;
 import com.fs.starfarer.api.characters.PersonAPI;
+import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.ui.LabelAPI;
 import com.fs.starfarer.api.ui.UIPanelAPI;
 import com.fs.starfarer.api.util.Misc;
@@ -88,9 +89,11 @@ public class rsg_OfficerRowPatch {
         Object person = context.getMethod(GET_PERSON).call();
         if (!(person instanceof PersonAPI)) return;
         PersonAPI p = (PersonAPI) person;
-        if (p.isPlayer() || p.isAICore()) {
+        // AI cores are the co-pilots of automated ships (the picker lists only cores for those), never of crewed ones
+        boolean coreOnCrewed = p.isAICore() && !Misc.isAutomated((FleetMemberAPI) context.getField(MEMBER).get());
+        if (p.isPlayer() || coreOnCrewed) {
             Global.getSector().getCampaignUI().getMessageDisplay().addMessage(
-                    p.isPlayer() ? "You can't serve as a co-pilot" : "AI cores can't serve as co-pilots",
+                    p.isPlayer() ? "You can't serve as a co-pilot" : "Crewed ships can't take an AI core co-pilot",
                     Misc.getNegativeHighlightColor());
             Global.getSoundPlayer().playUISound("ui_button_disabled_pressed", 1f, 1f);
             context.skipOriginal(null);

@@ -1,0 +1,2 @@
+fieldID,fieldName,fieldType,defaultValue,secondaryValue,fieldDescription,minValue,maxValue,tab
+rsg_useSkillWhitelist,Use skill whitelist,Boolean,true,,Enables skill whitelist (Default: TRUE). Skills not on the whitelist will not be usable when on a co-pilot. Turning this off may result in modded skills not functioning on co-pilots. Skills confirmed non-functional are added to a skill blacklist and are still disabled when this option is off.,,,

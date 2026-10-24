@@ -113,7 +113,7 @@ public class rsg_RefitOfficerPatch {
         boolean wanted = Global.getCurrentState() == GameState.CAMPAIGN
                 && !member.isFighterWing()
                 && variant != null && variant.hasHullMod(rsg_SecondOfficers.HULLMOD_ID)
-                && member.getFleetData() != null && member.getFleetData() == rsg_SecondOfficers.getPlayerFleetData()
+                && rsg_SecondOfficers.isInPlayerFleet(member, rsg_SecondOfficers.getPlayerFleetData())
                 && context.hasMethod(SHOW_PICKER);
         if (wanted == (slot != null)) return;
 

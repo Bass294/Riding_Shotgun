@@ -14,13 +14,15 @@ import com.fs.starfarer.api.ui.UIComponentAPI;
 import com.fs.starfarer.api.util.Misc;
 import data.scripts.officers.rsg_SecondOfficerSkills;
 import data.scripts.officers.rsg_SecondOfficers;
+import data.scripts.officers.rsg_SkillWhitelist;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Officer tooltip for the second seat, laid out like the vanilla one (title, personality, combat skills, salary).
- * Skills the captain already has are listed separately and greyed out, since they add nothing to the ship.
+ * Skills the captain already has are listed separately and greyed out, since they add nothing to the ship, and so
+ * are modded skills that are not on the co-pilot whitelist (rsg_SkillWhitelist), which are not applied.
  */
 public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator {
 
@@ -52,8 +54,13 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
 
         if (second == null) {
             tooltip.addTitle("Co-pilot", player.getBaseUIColor());
-            tooltip.addPara("Assign an officer to serve alongside the captain. The ship benefits from their "
-                    + "non-duplicate combat skills.", opad);
+            if (Misc.isAutomated(member)) {
+                tooltip.addPara("Assign an AI core to serve alongside the captain. The ship benefits from its "
+                        + "non-duplicate combat skills.", opad);
+            } else {
+                tooltip.addPara("Assign an officer to serve alongside the captain. The ship benefits from their "
+                        + "non-duplicate combat skills.", opad);
+            }
             return;
         }
 
@@ -101,12 +108,19 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
     private static void addSkills(TooltipMakerAPI tooltip, PersonAPI second, PersonAPI captain, float opad, float pad) {
         PersonAPI applies = createSkillHolder();
         PersonAPI covered = createSkillHolder();
+        PersonAPI unsupported = createSkillHolder();
         List<String> eliteOnly = new ArrayList<String>();
-        boolean anyApplies = false, anyCovered = false;
+        boolean anyApplies = false, anyCovered = false, anyUnsupported = false;
 
         for (SkillLevelAPI sl : second.getStats().getSkillsCopy()) {
             SkillSpecAPI skill = sl.getSkill();
             if (!skill.isCombatOfficerSkill() || sl.getLevel() <= 0) continue;
+            // modded skills not on the whitelist aren't applied (rsg_SkillWhitelist)
+            if (!rsg_SkillWhitelist.isSupported(skill.getId())) {
+                unsupported.getStats().setSkillLevel(skill.getId(), sl.getLevel());
+                anyUnsupported = true;
+                continue;
+            }
             String part = rsg_SecondOfficerSkills.getAppliedPart(second, captain, skill);
             if (part != null) {
                 applies.getStats().setSkillLevel(skill.getId(), sl.getLevel());
@@ -131,6 +145,11 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
         if (anyCovered) {
             tooltip.addPara("Already known by the captain:", Misc.getGrayColor(), opad);
             UIComponentAPI panel = tooltip.addSkillPanel(covered, pad);
+            panel.setOpacity(DUPLICATE_OPACITY);
+        }
+        if (anyUnsupported) {
+            tooltip.addPara("Unsupported:", Misc.getGrayColor(), opad);
+            UIComponentAPI panel = tooltip.addSkillPanel(unsupported, pad);
             panel.setOpacity(DUPLICATE_OPACITY);
         }
     }

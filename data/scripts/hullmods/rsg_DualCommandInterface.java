@@ -11,6 +11,8 @@ import com.fs.starfarer.api.combat.BaseHullMod;
 import com.fs.starfarer.api.combat.MutableShipStatsAPI;
 import com.fs.starfarer.api.combat.ShipAPI;
 import com.fs.starfarer.api.combat.ShipAPI.HullSize;
+import com.fs.starfarer.api.combat.ShipVariantAPI;
+import com.fs.starfarer.api.loading.VariantSource;
 import com.fs.starfarer.api.fleet.FleetMemberAPI;
 import com.fs.starfarer.api.impl.campaign.ids.Stats;
 import com.fs.starfarer.api.ui.Alignment;
@@ -20,6 +22,7 @@ import data.scripts.officers.rsg_SecondOfficerSkills;
 import data.scripts.officers.rsg_SecondOfficers;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -47,6 +50,7 @@ public class rsg_DualCommandInterface extends BaseHullMod {
     @Override
     public void applyEffectsBeforeShipCreation(HullSize hullSize, MutableShipStatsAPI stats, String id) {
         FleetMemberAPI member = stats.getFleetMember();
+        linkModules(member, stats.getVariant());
         PersonAPI second = rsg_SecondOfficers.get(member);
         if (second == null) return;
         rsg_SecondOfficerSkills.applyToStats(second, member.getCaptain(), stats, hullSize);
@@ -56,6 +60,32 @@ public class rsg_DualCommandInterface extends BaseHullMod {
         if (percent > 0f) {
             stats.getSuppliesToRecover().modifyPercent(id, percent);
             stats.getDynamic().getMod(Stats.DEPLOYMENT_POINTS_MOD).modifyPercent(id, percent);
+        }
+    }
+
+    /**
+     * Gives each station module the hidden rsg_DualCommandModule and a tag naming this ship, so the co-pilot's skills
+     * reach the modules when the game builds them. Only the player's own refit variants are edited; a module variant
+     * that isn't one of those yet (a shared stock variant) is replaced by a refit copy first, as vanilla's refit does.
+     */
+    private static void linkModules(FleetMemberAPI member, ShipVariantAPI variant) {
+        if (member == null || variant == null || variant.getSource() != VariantSource.REFIT) return;
+        if (!rsg_SecondOfficers.isInPlayerFleet(member, rsg_SecondOfficers.getPlayerFleetData())) return;
+        String tag = rsg_DualCommandModule.PARENT_TAG_PREFIX + member.getId();
+        for (String slot : variant.getModuleSlots()) {
+            ShipVariantAPI module = variant.getModuleVariant(slot);
+            if (module == null || (module.hasHullMod(rsg_DualCommandModule.ID) && module.hasTag(tag))) continue;
+            if (module.getSource() != VariantSource.REFIT) {
+                module = module.clone();
+                module.setSource(VariantSource.REFIT);
+                variant.setModuleVariant(slot, module);
+            }
+            // a module variant copied from another ship would still name that ship
+            for (String old : new ArrayList<String>(module.getTags())) {
+                if (old.startsWith(rsg_DualCommandModule.PARENT_TAG_PREFIX)) module.removeTag(old);
+            }
+            module.addTag(tag);
+            if (!module.hasHullMod(rsg_DualCommandModule.ID)) module.addPermaMod(rsg_DualCommandModule.ID, false);
         }
     }
 
@@ -86,15 +116,15 @@ public class rsg_DualCommandInterface extends BaseHullMod {
         rsg_SecondOfficerSkills.applyToFighter(second, ship.getCaptain(), fighter);
     }
 
+    // automated ships take an AI core co-pilot instead of an officer
     @Override
     public boolean isApplicableToShip(ShipAPI ship) {
-        return ship != null && !Misc.isAutomated(ship) && ship.getParentStation() == null;
+        return ship != null && ship.getParentStation() == null;
     }
 
     @Override
     public String getUnapplicableReason(ShipAPI ship) {
-        if (ship != null && ship.getParentStation() != null) return "Can't be installed on a ship module";
-        return "Can't be installed on automated ships";
+        return "Can't be installed on a ship module";
     }
 
     // the description from hull_mods.csv first, then the headed sections below, like Arma Armatura's hullmods
@@ -116,10 +146,12 @@ public class rsg_DualCommandInterface extends BaseHullMod {
         tooltip.addPara("%s Skills gain their elite effect if either officer has the elite skill.", padS, h, BULLET);
         tooltip.addPara("%s Requires a %s to install. The core is returned when the hullmod is removed.",
                 padS, h, BULLET, "Gemini Core");
+        tooltip.addPara("%s An AI core co-pilot does not increase auto-ship point cost.", padS, h, BULLET);
 
         tooltip.addSectionHeading("Deployment Point Penalty", Alignment.MID, pad);
-        tooltip.addPara("%s Deployment cost is increased by %s for each non-duplicate skill added by the co-pilot.",
-                pad, h, BULLET, Misc.getRoundedValueMaxOneAfterDecimal(DP_PERCENT_PER_SKILL) + "%");
+        tooltip.addPara("%s %s %s for each non-duplicate skill added by the co-pilot.", pad,
+                new Color[] {h, Misc.getNegativeHighlightColor(), h},
+                BULLET, "Deployment cost is increased by", Misc.getRoundedValueMaxOneAfterDecimal(DP_PERCENT_PER_SKILL) + "%");
 
         FleetMemberAPI member = isForModSpec ? null : getMember(ship);
         PersonAPI second = member != null ? rsg_SecondOfficers.get(member) : null;
