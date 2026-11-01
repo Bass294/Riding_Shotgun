@@ -1,2 +1,5 @@
+Version 0.1.1
+- Fixed hullmod dropping as salvage
+
 Version 0.1
 - Initial pre-release
