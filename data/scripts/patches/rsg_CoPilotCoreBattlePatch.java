@@ -58,6 +58,20 @@ public class rsg_CoPilotCoreBattlePatch {
     public static void afterGetRecoverableShips(AfterContext context) {
         // Nexerelin overrides this and calls super; its result is the complete one
         if (!context.isMostDerivedCall()) return;
+        recordOffered(context);
+    }
+
+    /**
+     * 0.98.5: the three-argument version delegates here, and losing a battle calls this one directly (playerSideOnly
+     * = true) to offer the player's own ships. After a win the three-argument hook runs last and overwrites this.
+     */
+    @After(target = @MethodMatch(methodName = "getRecoverableShips", parameterCount = 4))
+    public static void afterGetRecoverableShipsSideOnly(AfterContext context) {
+        if (!context.isMostDerivedCall()) return;
+        recordOffered(context);
+    }
+
+    private static void recordOffered(AfterContext context) {
         Object self = context.getSelf();
         Object result = context.getReturnValue();
         if (!(self instanceof FleetEncounterContext)) return;

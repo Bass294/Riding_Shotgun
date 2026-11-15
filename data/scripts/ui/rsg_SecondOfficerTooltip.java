@@ -84,7 +84,7 @@ public class rsg_SecondOfficerTooltip implements TooltipMakerAPI.TooltipCreator 
         addSkills(tooltip, second, member.getCaptain(), opad, pad);
 
         if (!second.isAICore()) {
-            tooltip.addPara("Monthly salary: %s", opad, Misc.getHighlightColor(), Misc.getDGSCredits(Misc.getOfficerSalary(second)));
+            tooltip.addPara("Monthly salary: %s", opad, Misc.getHighlightColor(), Misc.getDGSCredits(Misc.getOfficerSalary(second, false)));
         }
         if (merc) {
             float daysLeft = Global.getSettings().getFloat("officerMercContractDur") - Misc.getMercDaysSinceHired(second);

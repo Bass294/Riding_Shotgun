@@ -3,11 +3,11 @@
 - **Author:** Bass
 - **Art:** Bass (there isn't much)
 - **Writing/descriptions:** Bass
-- **Code/rules:** Claude Opus 5.5, with Lukas04's starsector-knowledge skill, patchlib skill, and hartley's
-  starsector-rules-writing-V3
+- **Code/rules:** Claude Opus 5.5
 
 ## Special thanks
 
+- Lukas and Hartley, for help in AI direction
 - Lukas, for help/direction and the procgen station template
 - Selkie, for help
 - Aero, for coming up with the name

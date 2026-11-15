@@ -18,6 +18,7 @@ import patchlib.api.spec.FieldQuerySpec;
 /** The vanilla officer picker, when opened for a co-pilot seat: retitles it and highlights the current co-pilot. */
 // 0.98a-RC8 Windows: the title label constructed here is com.fs.starfarer.ui.d (implements LabelAPI); its
 // class name will change, which is why the redirect matches it by LabelAPI and constructor arity only.
+// 0.98.5: the picker builds its contents in recreate() (called from sizeChanged and after clicks), not sizeChanged.
 @Patch(target = @ClassMatch(typeName = "com.fs.starfarer.coreui.CaptainPickerDialog"))
 public class rsg_CaptainPickerPatch {
 
@@ -31,7 +32,7 @@ public class rsg_CaptainPickerPatch {
     private static final FieldQuerySpec MEMBER = FieldQuery.create().typeName("com.fs.starfarer.campaign.fleet.FleetMember").build();
 
     @RedirectConstructorCall(
-            target = @MethodMatch(methodName = "sizeChanged", parameterCount = 2),
+            target = @MethodMatch(methodName = "recreate", parameterCount = 0),
             type = @ClassMatch(subtype = LabelAPI.class),
             constructor = @MethodMatch(parameterCount = 5))
     public static void redirectTitleLabel(ConstructorCallContext context) {
@@ -54,7 +55,7 @@ public class rsg_CaptainPickerPatch {
      * check highlights that row.
      */
     @RedirectMethodCall(
-            target = @MethodMatch(methodName = "sizeChanged", parameterCount = 2),
+            target = @MethodMatch(methodName = "recreate", parameterCount = 0),
             call = @MethodMatch(methodName = "getMemberWithCaptain", parameterCount = 1),
             owner = @ClassMatch(subtype = FleetDataAPI.class))
     public static void redirectCurrentOfficer(MethodCallContext context) {
